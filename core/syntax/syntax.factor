@@ -3,7 +3,7 @@
 USING: accessors alien arrays byte-arrays byte-vectors definitions generic
 hashtables kernel math namespaces parser lexer sequences strings
 strings.parser sbufs vectors words words.symbol words.constant
-words.alias quotations io assocs splitting classes.tuple
+words.alias quotations io assocs splitting classes.tuple 
 generic.standard generic.hook generic.math generic.parser classes
 io.pathnames vocabs vocabs.parser classes.parser classes.union
 classes.intersection classes.mixin classes.predicate
@@ -26,230 +26,161 @@ IN: bootstrap.syntax
     [ dup "syntax" lookup [ ] [ no-word-error ] ?if ] dip
     define-syntax ;
 
+: 2group ( seq -- array )
+  [ dup length 2 >= ] [ 2 cut swap ] produce
+  swap append ;
+
 [
     { "]" "}" ";" ">>" } [ define-delimiter ] each
 
-    "PRIMITIVE:" [
-        "Primitive definition is not supported" throw
-    ] define-core-syntax
+    { 
+        "PRIMITIVE:" [ "Primitive definition is not supported" throw ] 
+        
+        "CS{" [ "Call stack literals are not supported" throw ] 
+        
+        "!" [ lexer get next-line ] 
+        
+        "#!" [ POSTPONE: ! ] 
+               
+        "IN:" [ scan set-current-vocab ] 
+               
+        "<PRIVATE" [ begin-private ] 
+               
+        "PRIVATE>" [ end-private ] 
+               
+        "USE:" [ scan use-vocab ] 
+               
+        "UNUSE:" [ scan unuse-vocab ] 
+               
+        "USING:" [ ";" parse-tokens [ use-vocab ] each ] 
+               
+        "QUALIFIED:" [ scan dup add-qualified ] 
+               
+        "QUALIFIED-WITH:" [ scan scan add-qualified ] 
+               
+        "FROM:" [ scan "=>" expect ";" parse-tokens add-words-from ] 
+               
+        "EXCLUDE:" [ scan "=>" expect ";" parse-tokens add-words-excluding ] 
+               
+        "RENAME:" [ scan scan "=>" expect scan add-renamed-word ] 
+               
+        "HEX:" [ 16 parse-base ] 
+        "OCT:" [ 8 parse-base ] 
+        "BIN:" [ 2 parse-base ] 
+               
+        "CHAR:" [ scan
+                  { { [ dup length 1 = ] [ first ] }
+                    { [ "\\" ?head ] [ next-escape >string "" assert= ] }
+                      [ name>char-hook get call( name -- char ) ]
+                   } cond parsed ] 
+               
+         "\"" [ parse-string parsed ] 
+               
+         "SBUF\"" [ lexer get skip-blank parse-string >sbuf parsed ] 
+               
+         "P\"" [ lexer get skip-blank parse-string <pathname> parsed ]
 
-    "CS{" [
-        "Call stack literals are not supported" throw
-    ] define-core-syntax
+         "[" [ parse-quotation parsed ]
+         "{" [ \ } [ >array ] parse-literal ]
+         "2{" [ \ } [ >array 2group ] parse-literal ]
+!         "3{" [ \ } [ >array 3 group* ] parse-literal ]
+!         "4{" [ \ } [ >array 4 group* ] parse-literal ]
+         "V{" [ \ } [ >vector ] parse-literal ] 
+         "B{" [ \ } [ >byte-array ] parse-literal ] 
+         "BV{" [ \ } [ >byte-vector ] parse-literal ] 
+         "H{" [ \ } [ >hashtable ] parse-literal ] 
+         "T{" [ parse-tuple-literal parsed ] 
+         "W{" [ \ } [ first <wrapper> ] parse-literal ] 
+               
+         "POSTPONE:" [ scan-word parsed ] 
+         "\\" [ scan-word <wrapper> parsed ] 
+         "M\\" [ scan-word scan-word method <wrapper> parsed ] 
+         "inline" [ word make-inline ] 
+         "recursive" [ word make-recursive ] 
+         "foldable" [ word make-foldable ] 
+         "flushable" [ word make-flushable ] 
+         "delimiter" [ word t "delimiter" set-word-prop ] 
+         "deprecated" [ word make-deprecated ] 
+               
+         "SYNTAX:" [ CREATE-WORD parse-definition define-syntax ] 
 
-    "!" [ lexer get next-line ] define-core-syntax
+         "SYMBOL:" [ CREATE-WORD define-symbol ] 
+               
+         "SYMBOLS:" [ ";" parse-tokens [ create-in dup reset-generic define-symbol ] each ]
+               
+        "SINGLETONS:" [ ";" parse-tokens  [ create-class-in define-singleton-class ] each ]
 
-    "#!" [ POSTPONE: ! ] define-core-syntax
+        "DEFER:" [ scan current-vocab create
+                   [ fake-definition ] [ set-word ] [ [ undefined ] define ] tri ] 
+               
+        "ALIAS:" [ CREATE-WORD scan-word define-alias ] 
+               
+        "CONSTANT:" [ CREATE-WORD scan-object define-constant ] 
+               
+        ":" [ (:) define-declared ]
 
-    "IN:" [ scan set-current-vocab ] define-core-syntax
+        "GENERIC:" [ [ simple-combination ] (GENERIC:) ]
+               
+        "GENERIC#" [ [ scan-word <standard-combination> ] (GENERIC:) ] 
+               
+        "MATH:" [ [ math-combination ] (GENERIC:) ] 
+               
+        "HOOK:" [ [ scan-word <hook-combination> ] (GENERIC:) ] 
+               
+        "M:" [ (M:) define ]
+               
+        "UNION:" [ CREATE-CLASS parse-definition define-union-class ]
 
-    "<PRIVATE" [ begin-private ] define-core-syntax
+        "INTERSECTION:" [ CREATE-CLASS parse-definition define-intersection-class ]
+               
+        "MIXIN:" [ CREATE-CLASS define-mixin-class ]
+               
+        "INSTANCE:" [ location
+                      [ scan-word scan-word 2dup add-mixin-instance <mixin-instance> ] dip                                                          remember-definition ]
 
-    "PRIVATE>" [ end-private ] define-core-syntax
+        "PREDICATE:" [ CREATE-CLASS
+                       scan "<" assert=
+                       scan-word
+                       parse-definition define-predicate-class ]
 
-    "USE:" [ scan use-vocab ] define-core-syntax
+        "SINGLETON:" [ CREATE-CLASS define-singleton-class ] 
+               
+        "TUPLE:" [ parse-tuple-definition define-tuple-class ] 
+               
+        "SLOT:" [ scan define-protocol-slot ] 
+               
+        "C:" [ CREATE-WORD scan-word define-boa-word ]
+               
+        "ERROR:" [ parse-tuple-definition
+                   pick save-location
+                   define-error-class ]
 
-    "UNUSE:" [ scan unuse-vocab ] define-core-syntax
+        "FORGET:" [ scan-object forget ] 
+               
+        "(" [ ")" parse-effect drop ]
+               
+        "((" [ "))" parse-effect parsed ] 
+               
+        "MAIN:" [ scan-word current-vocab (>>main) ] 
+               
+        "<<" [ [ \ >> parse-until >quotation ] with-nested-compilation-unit call( -- ) ]
+               
+        "call-next-method" [ current-method get
+                             [ literalize parsed \ (call-next-method) parsed ]
+                             [ not-in-a-method-error ] if* ]
+               
+        "call(" [ \ call-effect parse-call( ] 
+               
+        "execute(" [ \ execute-effect parse-call( ] 
 
-    "USING:" [ ";" parse-tokens [ use-vocab ] each ] define-core-syntax
-
-    "QUALIFIED:" [ scan dup add-qualified ] define-core-syntax
-
-    "QUALIFIED-WITH:" [ scan scan add-qualified ] define-core-syntax
-
-    "FROM:" [
-        scan "=>" expect ";" parse-tokens add-words-from
-    ] define-core-syntax
-
-    "EXCLUDE:" [
-        scan "=>" expect ";" parse-tokens add-words-excluding
-    ] define-core-syntax
-
-    "RENAME:" [
-        scan scan "=>" expect scan add-renamed-word
-    ] define-core-syntax
-
-    "HEX:" [ 16 parse-base ] define-core-syntax
-    "OCT:" [ 8 parse-base ] define-core-syntax
-    "BIN:" [ 2 parse-base ] define-core-syntax
-
-    "f" [ f parsed ] define-core-syntax
+        "f" [ f parsed ]
+               
+    } 2group [ define-core-syntax ] assoc-each
+        
     "t" "syntax" lookup define-singleton-class
-
-    "CHAR:" [
-        scan {
-            { [ dup length 1 = ] [ first ] }
-            { [ "\\" ?head ] [ next-escape >string "" assert= ] }
-            [ name>char-hook get call( name -- char ) ]
-        } cond parsed
-    ] define-core-syntax
-
-    "\"" [ parse-string parsed ] define-core-syntax
-
-    "SBUF\"" [
-        lexer get skip-blank parse-string >sbuf parsed
-    ] define-core-syntax
-
-    "P\"" [
-        lexer get skip-blank parse-string <pathname> parsed
-    ] define-core-syntax
-
-    "[" [ parse-quotation parsed ] define-core-syntax
-    "{" [ \ } [ >array ] parse-literal ] define-core-syntax
-    "V{" [ \ } [ >vector ] parse-literal ] define-core-syntax
-    "B{" [ \ } [ >byte-array ] parse-literal ] define-core-syntax
-    "BV{" [ \ } [ >byte-vector ] parse-literal ] define-core-syntax
-    "H{" [ \ } [ >hashtable ] parse-literal ] define-core-syntax
-    "T{" [ parse-tuple-literal parsed ] define-core-syntax
-    "W{" [ \ } [ first <wrapper> ] parse-literal ] define-core-syntax
-
-    "POSTPONE:" [ scan-word parsed ] define-core-syntax
-    "\\" [ scan-word <wrapper> parsed ] define-core-syntax
-    "M\\" [ scan-word scan-word method <wrapper> parsed ] define-core-syntax
-    "inline" [ word make-inline ] define-core-syntax
-    "recursive" [ word make-recursive ] define-core-syntax
-    "foldable" [ word make-foldable ] define-core-syntax
-    "flushable" [ word make-flushable ] define-core-syntax
-    "delimiter" [ word t "delimiter" set-word-prop ] define-core-syntax
-    "deprecated" [ word make-deprecated ] define-core-syntax
-
-    "SYNTAX:" [
-        CREATE-WORD parse-definition define-syntax
-    ] define-core-syntax
-
-    "SYMBOL:" [
-        CREATE-WORD define-symbol
-    ] define-core-syntax
-
-    "SYMBOLS:" [
-        ";" parse-tokens
-        [ create-in dup reset-generic define-symbol ] each
-    ] define-core-syntax
-
-    "SINGLETONS:" [
-        ";" parse-tokens
-        [ create-class-in define-singleton-class ] each
-    ] define-core-syntax
-
-    "DEFER:" [
-        scan current-vocab create
-        [ fake-definition ] [ set-word ] [ [ undefined ] define ] tri
-    ] define-core-syntax
-    
-    "ALIAS:" [
-        CREATE-WORD scan-word define-alias
-    ] define-core-syntax
-
-    "CONSTANT:" [
-        CREATE-WORD scan-object define-constant
-    ] define-core-syntax
-
-    ":" [
-        (:) define-declared
-    ] define-core-syntax
-
-    "GENERIC:" [
-        [ simple-combination ] (GENERIC:)
-    ] define-core-syntax
-
-    "GENERIC#" [
-        [ scan-word <standard-combination> ] (GENERIC:)
-    ] define-core-syntax
-
-    "MATH:" [
-        [ math-combination ] (GENERIC:)
-    ] define-core-syntax
-
-    "HOOK:" [
-        [ scan-word <hook-combination> ] (GENERIC:)
-    ] define-core-syntax
-
-    "M:" [
-        (M:) define
-    ] define-core-syntax
-
-    "UNION:" [
-        CREATE-CLASS parse-definition define-union-class
-    ] define-core-syntax
-
-    "INTERSECTION:" [
-        CREATE-CLASS parse-definition define-intersection-class
-    ] define-core-syntax
-
-    "MIXIN:" [
-        CREATE-CLASS define-mixin-class
-    ] define-core-syntax
-
-    "INSTANCE:" [
-        location [
-            scan-word scan-word 2dup add-mixin-instance
-            <mixin-instance>
-        ] dip remember-definition
-    ] define-core-syntax
-
-    "PREDICATE:" [
-        CREATE-CLASS
-        scan "<" assert=
-        scan-word
-        parse-definition define-predicate-class
-    ] define-core-syntax
-
-    "SINGLETON:" [
-        CREATE-CLASS define-singleton-class
-    ] define-core-syntax
-
-    "TUPLE:" [
-        parse-tuple-definition define-tuple-class
-    ] define-core-syntax
-
-    "SLOT:" [
-        scan define-protocol-slot
-    ] define-core-syntax
-
-    "C:" [
-        CREATE-WORD scan-word define-boa-word
-    ] define-core-syntax
-
-    "ERROR:" [
-        parse-tuple-definition
-        pick save-location
-        define-error-class
-    ] define-core-syntax
-
-    "FORGET:" [
-        scan-object forget
-    ] define-core-syntax
-
-    "(" [
-        ")" parse-effect drop
-    ] define-core-syntax
-
-    "((" [
-        "))" parse-effect parsed
-    ] define-core-syntax
-
-    "MAIN:" [ scan-word current-vocab (>>main) ] define-core-syntax
-
-    "<<" [
-        [
-            \ >> parse-until >quotation
-        ] with-nested-compilation-unit call( -- )
-    ] define-core-syntax
-
-    "call-next-method" [
-        current-method get [
-            literalize parsed
-            \ (call-next-method) parsed
-        ] [
-            not-in-a-method-error
-        ] if*
-    ] define-core-syntax
-    
+        
     "initial:" "syntax" lookup define-symbol
 
     "read-only" "syntax" lookup define-symbol
-
-    "call(" [ \ call-effect parse-call( ] define-core-syntax
-
-    "execute(" [ \ execute-effect parse-call( ] define-core-syntax
+        
 ] with-compilation-unit
