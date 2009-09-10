@@ -96,6 +96,7 @@ IN: bootstrap.syntax
 
     "[" [ parse-quotation parsed ] define-core-syntax
     "{" [ \ } [ >array ] parse-literal ] define-core-syntax
+    "Z{" [ \ } [ >array ] parse-literal ] define-core-syntax       
     "V{" [ \ } [ >vector ] parse-literal ] define-core-syntax
     "B{" [ \ } [ >byte-array ] parse-literal ] define-core-syntax
     "BV{" [ \ } [ >byte-vector ] parse-literal ] define-core-syntax
