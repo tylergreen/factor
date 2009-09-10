@@ -175,7 +175,7 @@ IN: bootstrap.syntax
 
         "f" [ f parsed ]
                
-    } 2group [ define-core-syntax ] assoc-each
+    } 2group* [ define-core-syntax ] assoc-each
         
     "t" "syntax" lookup define-singleton-class
         
