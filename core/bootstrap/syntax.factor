@@ -76,6 +76,8 @@ IN: bootstrap.syntax
     "t"
     "{"
     "2{"
+    "3{"
+    "4{"
     "}"
     "CS{"
     "<<"

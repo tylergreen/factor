@@ -26,9 +26,8 @@ IN: bootstrap.syntax
     [ dup "syntax" lookup [ ] [ no-word-error ] ?if ] dip
     define-syntax ;
 
-: 2group ( seq -- array )
-  [ dup length 2 >= ] [ 2 cut swap ] produce
-  swap append ;
+: 2group* ( seq -- array )
+   [ dup length 2 >= ] [ 2 cut swap ] produce swap append ;
 
 [
     { "]" "}" ";" ">>" } [ define-delimiter ] each
@@ -82,15 +81,16 @@ IN: bootstrap.syntax
 
          "[" [ parse-quotation parsed ]
          "{" [ \ } [ >array ] parse-literal ]
-         "2{" [ \ } [ >array 2group ] parse-literal ]
-!         "3{" [ \ } [ >array 3 group* ] parse-literal ]
-!         "4{" [ \ } [ >array 4 group* ] parse-literal ]
          "V{" [ \ } [ >vector ] parse-literal ] 
          "B{" [ \ } [ >byte-array ] parse-literal ] 
          "BV{" [ \ } [ >byte-vector ] parse-literal ] 
          "H{" [ \ } [ >hashtable ] parse-literal ] 
          "T{" [ parse-tuple-literal parsed ] 
-         "W{" [ \ } [ first <wrapper> ] parse-literal ] 
+         "W{" [ \ } [ first <wrapper> ] parse-literal ]
+
+         "2{" [ \ } [ >array 2group* ] parse-literal ]
+         "3{" [ \ } [ >array [ dup length 3 >= ] [ 3 cut swap ] produce swap append ] parse-literal ] 
+         "4{" [ \ } [ >array [ dup length 4 >= ] [ 4 cut swap ] produce swap append ] parse-literal ]  
                
          "POSTPONE:" [ scan-word parsed ] 
          "\\" [ scan-word <wrapper> parsed ] 
