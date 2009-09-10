@@ -86,6 +86,8 @@ INSTANCE: sliced-clumps slice-chunking
 
 : group ( seq n -- array ) <groups> { } like ;
 
+: group* ( seq n -- array ) group unclip-last append ;
+
 : clump ( seq n -- array ) <clumps> { } like ;
 
 : monotonic? ( seq quot -- ? )
