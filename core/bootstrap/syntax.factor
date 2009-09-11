@@ -75,7 +75,6 @@ IN: bootstrap.syntax
     "recursive"
     "t"
     "{"
-    "Z{"
     "}"
     "CS{"
     "<<"
