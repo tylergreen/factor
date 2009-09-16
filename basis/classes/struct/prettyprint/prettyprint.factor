@@ -18,12 +18,12 @@ IN: classes.struct.prettyprint
 
 : pprint-struct-slot ( slot -- )
     <flow \ { pprint-word
-    {
+    f <inset {
         [ name>> text ]
-        [ c-type>> dup string? [ text ] [ pprint* ] if ]
+        [ type>> dup string? [ text ] [ pprint* ] if ]
         [ read-only>> [ \ read-only pprint-word ] when ]
         [ initial>> [ \ initial: pprint-word pprint* ] when* ]
-    } cleave
+    } cleave block>
     \ } pprint-word block> ;
 
 : pprint-struct ( struct -- )
@@ -111,7 +111,7 @@ M: struct-mirror >alist ( mirror -- alist )
     ] [
         '[
             _ struct>assoc
-            [ [ [ name>> ] [ c-type>> ] bi 2array ] dip ] assoc-map
+            [ [ [ name>> ] [ type>> ] bi 2array ] dip ] assoc-map
         ] [ drop { } ] recover
     ] bi append ;
 

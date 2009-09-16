@@ -39,6 +39,9 @@ IN: math.libm
 : flog ( x -- y )
     "double" "libm" "log" { "double" } alien-invoke ;
 
+: flog10 ( x -- y )
+    "double" "libm" "log10" { "double" } alien-invoke ;
+
 : fpow ( x y -- z )
     "double" "libm" "pow" { "double" "double" } alien-invoke ;
 
@@ -46,6 +49,9 @@ IN: math.libm
     "double" "libm" "sqrt" { "double" } alien-invoke ;
     
 ! Windows doesn't have these...
+: flog1+ ( x -- y )
+    "double" "libm" "log1p" { "double" } alien-invoke ;
+
 : facosh ( x -- y )
     "double" "libm" "acosh" { "double" } alien-invoke ;
 

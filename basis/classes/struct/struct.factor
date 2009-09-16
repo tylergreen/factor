@@ -1,30 +1,35 @@
 ! (c)Joe Groff bsd license
-USING: accessors alien alien.c-types alien.structs
-alien.structs.fields arrays byte-arrays classes classes.parser
-classes.tuple classes.tuple.parser classes.tuple.private
-combinators combinators.short-circuit combinators.smart
-definitions functors.backend fry generalizations generic.parser
-kernel kernel.private lexer libc locals macros make math
-math.order parser quotations sequences slots slots.private
-specialized-arrays vectors words
-compiler.tree.propagation.transforms ;
-FROM: slots => reader-word writer-word ;
+USING: accessors alien alien.c-types arrays byte-arrays classes
+classes.parser classes.tuple classes.tuple.parser
+classes.tuple.private combinators combinators.short-circuit
+combinators.smart cpu.architecture definitions functors.backend
+fry generalizations generic.parser kernel kernel.private lexer
+libc locals macros make math math.order parser quotations
+sequences slots slots.private specialized-arrays vectors words
+summary namespaces assocs ;
 IN: classes.struct
 
 SPECIALIZED-ARRAY: uchar
 
 ERROR: struct-must-have-slots ;
 
+M: struct-must-have-slots summary
+    drop "Struct definitions must have slots" ;
+
 TUPLE: struct
     { (underlying) c-ptr read-only } ;
 
 TUPLE: struct-slot-spec < slot-spec
-    c-type ;
+    type ;
 
-PREDICATE: struct-class < tuple-class \ struct subclass-of? ;
+PREDICATE: struct-class < tuple-class
+    superclass \ struct eq? ;
 
-: struct-slots ( struct-class -- slots )
-    "struct-slots" word-prop ;
+M: struct-class valid-superclass? drop f ;
+
+GENERIC: struct-slots ( struct-class -- slots )
+
+M: struct-class struct-slots "struct-slots" word-prop ;
 
 ! struct allocation
 
@@ -79,11 +84,11 @@ MACRO: <struct-boa> ( class -- quot: ( ... -- struct ) )
     [ struct-slots [ initial>> ] map over length tail append ] keep ;
 
 : (reader-quot) ( slot -- quot )
-    [ c-type>> c-type-getter-boxer ]
+    [ type>> c-type-getter-boxer ]
     [ offset>> [ >c-ptr ] swap suffix ] bi prepend ;
 
 : (writer-quot) ( slot -- quot )
-    [ c-type>> c-setter ]
+    [ type>> c-setter ]
     [ offset>> [ >c-ptr ] swap suffix ] bi prepend ;
 
 : (boxer-quot) ( class -- quot )
@@ -110,6 +115,39 @@ M: struct-class writer-quot
 
 ! c-types
 
+TUPLE: struct-c-type < abstract-c-type
+    fields
+    return-in-registers? ;
+
+INSTANCE: struct-c-type value-type
+
+M: struct-c-type c-type ;
+
+M: struct-c-type c-type-stack-align? drop f ;
+
+: if-value-struct ( ctype true false -- )
+    [ dup value-struct? ] 2dip '[ drop "void*" @ ] if ; inline
+
+M: struct-c-type unbox-parameter
+    [ %unbox-large-struct ] [ unbox-parameter ] if-value-struct ;
+
+M: struct-c-type box-parameter
+    [ %box-large-struct ] [ box-parameter ] if-value-struct ;
+
+: if-small-struct ( c-type true false -- ? )
+    [ dup return-struct-in-registers? ] 2dip '[ f swap @ ] if ; inline
+
+M: struct-c-type unbox-return
+    [ %unbox-small-struct ] [ %unbox-large-struct ] if-small-struct ;
+
+M: struct-c-type box-return
+    [ %box-small-struct ] [ %box-large-struct ] if-small-struct ;
+
+M: struct-c-type stack-size
+    [ heap-size ] [ stack-size ] if-value-struct ;
+
+M: struct-c-type c-struct? drop t ;
+
 <PRIVATE
 : struct-slot-values-quot ( class -- quot )
     struct-slots
@@ -132,79 +170,54 @@ M: struct-class writer-quot
     [ \ clone-underlying swap literalize \ memory>struct [ ] 3sequence ] bi
     define-inline-method ;
 
-: slot>field ( slot -- field )
-    field-spec new swap {
-        [ name>> >>name ]
-        [ offset>> >>offset ]
-        [ c-type>> >>type ]
-        [ name>> reader-word >>reader ]
-        [ name>> writer-word >>writer ]
+: c-type-for-class ( class -- c-type )
+    struct-c-type new swap {
+        [ drop byte-array >>class ]
+        [ >>boxed-class ]
+        [ struct-slots >>fields ]
+        [ "struct-size" word-prop >>size ]
+        [ "struct-align" word-prop >>align ]
+        [ (unboxer-quot) >>unboxer-quot ]
+        [ (boxer-quot) >>boxer-quot ]
     } cleave ;
-
-: define-struct-for-class ( class -- )
-    [
-        {
-            [ name>> ]
-            [ "struct-size" word-prop ]
-            [ "struct-align" word-prop ]
-            [ struct-slots [ slot>field ] map ]
-        } cleave
-        struct-type (define-struct)
-    ] [
-        {
-            [ name>> c-type ]
-            [ (unboxer-quot) >>unboxer-quot ]
-            [ (boxer-quot) >>boxer-quot ]
-            [ >>boxed-class ]
-        } cleave drop
-    ] bi ;
-
+    
 : align-offset ( offset class -- offset' )
     c-type-align align ;
 
 : struct-offsets ( slots -- size )
     0 [
-        [ c-type>> align-offset ] keep
-        [ (>>offset) ] [ c-type>> heap-size + ] 2bi
+        [ type>> align-offset ] keep
+        [ (>>offset) ] [ type>> heap-size + ] 2bi
     ] reduce ;
 
 : union-struct-offsets ( slots -- size )
-    [ 0 >>offset c-type>> heap-size ] [ max ] map-reduce ;
+    [ 0 >>offset type>> heap-size ] [ max ] map-reduce ;
 
 : struct-align ( slots -- align )
-    [ c-type>> c-type-align ] [ max ] map-reduce ;
+    [ type>> c-type-align ] [ max ] map-reduce ;
 PRIVATE>
 
-M: struct-class c-type
-    name>> c-type ;
+M: struct-class c-type name>> c-type ;
 
-M: struct-class c-type-align
-    "struct-align" word-prop ;
+M: struct-class c-type-align c-type c-type-align ;
 
-M: struct-class c-type-getter
-    drop [ swap <displaced-alien> ] ;
+M: struct-class c-type-getter c-type c-type-getter ;
 
-M: struct-class c-type-setter
-    [ c-type-getter ] [ c-type-unboxer-quot ] [ heap-size ] tri
-    '[ @ swap @ _ memcpy ] ;
+M: struct-class c-type-setter c-type c-type-setter ;
 
-M: struct-class c-type-boxer-quot
-    (boxer-quot) ;
+M: struct-class c-type-boxer-quot c-type c-type-boxer-quot ;
 
-M: struct-class c-type-unboxer-quot
-    (unboxer-quot) ;
+M: struct-class c-type-unboxer-quot c-type c-type-boxer-quot ;
 
-M: struct-class heap-size
-    "struct-size" word-prop ;
+M: struct-class heap-size c-type heap-size ;
 
-M: struct byte-length
-    class "struct-size" word-prop ; foldable
+M: struct byte-length class "struct-size" word-prop ; foldable
 
 ! class definition
 
 <PRIVATE
 : make-struct-prototype ( class -- prototype )
-    [ heap-size <byte-array> ]
+    [ "struct-size" word-prop <byte-array> ]
     [ memory>struct ]
     [ struct-slots ] tri
     [
@@ -230,22 +243,23 @@ M: struct byte-length
     [ (struct-methods) ] tri ;
 
 : check-struct-slots ( slots -- )
-    [ c-type>> c-type drop ] each ;
+    [ type>> c-type drop ] each ;
 
 : redefine-struct-tuple-class ( class -- )
     [ dup class? [ forget-class ] [ drop ] if ] [ struct f define-tuple-class ] bi ;
 
 : (define-struct-class) ( class slots offsets-quot -- )
     [ 
+        empty?
         [ struct-must-have-slots ]
-        [ drop redefine-struct-tuple-class ] if-empty
+        [ redefine-struct-tuple-class ] if
     ]
     swap '[
         make-slots dup
         [ check-struct-slots ] _ [ struct-align [ align ] keep ] tri
         (struct-word-props)
     ]
-    [ drop define-struct-for-class ] 2tri ; inline
+    [ drop [ c-type-for-class ] [ name>> ] bi typedef ] 2tri ; inline
 PRIVATE>
 
 : define-struct-class ( class slots -- )
@@ -253,6 +267,9 @@ PRIVATE>
 
 : define-union-struct-class ( class slots -- )
     [ union-struct-offsets ] (define-struct-class) ;
+
+M: struct-class reset-class
+    [ call-next-method ] [ name>> c-types get delete-at ] bi ;
 
 ERROR: invalid-struct-slot token ;
 
@@ -263,7 +280,7 @@ ERROR: invalid-struct-slot token ;
 : <struct-slot-spec> ( name c-type attributes -- slot-spec )
     [ struct-slot-spec new ] 3dip
     [ >>name ]
-    [ [ >>c-type ] [ struct-slot-class >>class ] bi ]
+    [ [ >>type ] [ struct-slot-class >>class ] bi ]
     [ [ dup empty? ] [ peel-off-attributes ] until drop ] tri* ;
 
 <PRIVATE
@@ -277,6 +294,7 @@ ERROR: invalid-struct-slot token ;
     scan {
         { ";" [ f ] }
         { "{" [ parse-struct-slot over push t ] }
+        { f [ unexpected-eof ] }
         [ invalid-struct-slot ]
     } case ;
 

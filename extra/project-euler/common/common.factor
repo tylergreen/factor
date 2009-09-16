@@ -76,7 +76,12 @@ PRIVATE>
     [ dup 0 = not ] [ 10 /mod ] produce reverse nip ;
 
 : number-length ( n -- m )
-    log10 floor 1 + >integer ;
+    abs [
+        1
+    ] [
+        1 0 [ 2over >= ]
+        [ [ 10 * ] [ 1 + ] bi* ] while 2nip
+    ] if-zero ;
 
 : nth-prime ( n -- n )
     1 - lprimes lnth ;
@@ -91,7 +96,7 @@ PRIVATE>
     number>string natural-sort >string "123456789" = ;
 
 : pentagonal? ( n -- ? )
-    dup 0 > [ 24 * 1 + sqrt 1 + 6 / 1 mod zero? ] [ drop f ] if ;
+    dup 0 > [ 24 * 1 + sqrt 1 + 6 / 1 mod zero? ] [ drop f ] if ; inline
 
 : penultimate ( seq -- elt )
     dup length 2 - swap nth ;

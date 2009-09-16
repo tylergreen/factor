@@ -1,30 +1,15 @@
 ! (c)Joe Groff bsd license
-USING: accessors alien alien.c-types alien.libraries
-alien.structs.fields alien.syntax ascii assocs byte-arrays
-classes.struct classes.tuple.private combinators
-compiler.tree.debugger compiler.units destructors
+USING: accessors alien alien.c-types ascii
+assocs byte-arrays classes.struct classes.tuple.private
+combinators compiler.tree.debugger compiler.units destructors
 io.encodings.utf8 io.pathnames io.streams.string kernel libc
 literals math mirrors multiline namespaces prettyprint
-prettyprint.config see sequences specialized-arrays
-system tools.test ;
+prettyprint.config see sequences specialized-arrays system
+tools.test parser lexer eval layouts ;
 SPECIALIZED-ARRAY: char
 SPECIALIZED-ARRAY: int
 SPECIALIZED-ARRAY: ushort
 IN: classes.struct.tests
-
-<<
-: libfactor-ffi-tests-path ( -- string )
-    "resource:" (normalize-path)
-    {
-        { [ os winnt? ]  [ "libfactor-ffi-test.dll" ] }
-        { [ os macosx? ] [ "libfactor-ffi-test.dylib" ] }
-        { [ os unix?  ]  [ "libfactor-ffi-test.so" ] }
-    } cond append-path ;
-
-"f-cdecl" libfactor-ffi-tests-path "cdecl" add-library
-
-"f-stdcall" libfactor-ffi-tests-path "stdcall" add-library
->>
 
 SYMBOL: struct-test-empty
 
@@ -211,43 +196,43 @@ UNION-STRUCT: struct-test-float-and-bits
 [ [ struct-test-float-and-bits see ] with-string-writer ] unit-test
 
 [ {
-    T{ field-spec
+    T{ struct-slot-spec
         { name "x" }
         { offset 0 }
+        { initial 0 }
+        { class fixnum }
         { type "char" }
-        { reader x>> }
-        { writer (>>x) }
     }
-    T{ field-spec
+    T{ struct-slot-spec
         { name "y" }
         { offset 4 }
+        { initial 123 }
+        { class integer }
         { type "int" }
-        { reader y>> }
-        { writer (>>y) }
     }
-    T{ field-spec
+    T{ struct-slot-spec
         { name "z" }
         { offset 8 }
+        { initial f }
         { type "bool" }
-        { reader z>> }
-        { writer (>>z) }
+        { class object }
     }
 } ] [ "struct-test-foo" c-type fields>> ] unit-test
 
 [ {
-    T{ field-spec
+    T{ struct-slot-spec
         { name "f" }
         { offset 0 }
         { type "float" }
-        { reader f>> }
-        { writer (>>f) }
+        { class float }
+        { initial 0.0 }
     }
-    T{ field-spec
+    T{ struct-slot-spec
         { name "bits" }
         { offset 0 }
         { type "uint" }
-        { reader bits>> }
-        { writer (>>bits) }
+        { class integer }
+        { initial 0 }
     }
 } ] [ "struct-test-float-and-bits" c-type fields>> ] unit-test
 
@@ -277,15 +262,6 @@ STRUCT: struct-test-equality-2
         [ hashcode ] bi@ =
     ] with-destructors
 ] unit-test
-
-STRUCT: struct-test-ffi-foo
-    { x int }
-    { y int } ;
-
-LIBRARY: f-cdecl
-FUNCTION: int ffi_test_11 ( int a, struct-test-ffi-foo b, int c ) ;
-
-[ 14 ] [ 1 2 3 struct-test-ffi-foo <struct-boa> 4 ffi_test_11 ] unit-test
 
 STRUCT: struct-test-array-slots
     { x int }
@@ -350,3 +326,27 @@ STRUCT: struct-that's-a-word { x int } ;
 
 [ -77 ] [ S{ struct-that's-a-word { x -77 } } clone x>> ] unit-test
 
+! Interactive parsing of struct slot definitions
+[
+    "USE: classes.struct IN: classes.struct.tests STRUCT: unexpected-eof-test" <string-reader>
+    "struct-class-test-1" parse-stream
+] [ error>> error>> unexpected-eof? ] must-fail-with
+
+! S{ with non-struct type
+[
+    "USE: classes.struct IN: classes.struct.tests TUPLE: not-a-struct ; S{ not-a-struct }"
+    eval( -- value )
+] must-fail
+
+! Subclassing a struct class should not be allowed
+[
+    "USE: classes.struct IN: classes.struct.tests STRUCT: a-struct { x int } ; TUPLE: not-a-struct < a-struct ;"
+    eval( -- )
+] must-fail
+
+! Remove c-type when struct class is forgotten
+[ ] [
+    "USE: classes.struct IN: classes.struct.tests TUPLE: a-struct ;" eval( -- )
+] unit-test
+
+[ f ] [ "a-struct" c-types get key? ] unit-test
