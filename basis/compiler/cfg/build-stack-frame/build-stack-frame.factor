@@ -25,9 +25,11 @@ M: stack-frame-insn compute-stack-frame*
 M: ##call compute-stack-frame*
     word>> sub-primitive>> [ frame-required? on ] unless ;
 
-M: _gc compute-stack-frame*
+M: ##gc compute-stack-frame*
     frame-required? on
-    stack-frame new swap tagged-values>> length cells >>gc-root-size
+    stack-frame new
+        swap tagged-values>> length cells >>gc-root-size
+        t >>calls-vm?
     request-stack-frame ;
 
 M: _spill-area-size compute-stack-frame*

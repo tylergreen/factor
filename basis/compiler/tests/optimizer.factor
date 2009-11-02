@@ -4,7 +4,7 @@ sbufs strings tools.test vectors words sequences.private
 quotations classes classes.algebra classes.tuple.private
 continuations growable namespaces hints alien.accessors
 compiler.tree.builder compiler.tree.optimizer sequences.deep
-compiler definitions generic.single ;
+compiler definitions generic.single shuffle ;
 IN: compiler.tests.optimizer
 
 GENERIC: xyz ( obj -- obj )
@@ -121,17 +121,6 @@ GENERIC: void-generic ( obj -- * )
 : <tuple>-regression ( class -- tuple ) <tuple> ;
 
 [ t ] [ \ <tuple>-regression optimized? ] unit-test
-
-GENERIC: foozul ( a -- b )
-M: reversed foozul ;
-M: integer foozul ;
-M: slice foozul ;
-
-[ t ] [
-    reversed \ foozul specific-method
-    reversed \ foozul method
-    eq?
-] unit-test
 
 ! regression
 : constant-fold-2 ( -- value ) f ; foldable
@@ -423,6 +412,38 @@ M: object bad-dispatch-position-test* ;
         \ bad-dispatch-position-test* forget
     ] with-compilation-unit
 ] unit-test
+
+[ 16 ] [
+    [
+        0 2
+        [
+            nip
+            [
+                1 + {
+                    [ 16 ]
+                    [ 16 ]
+                    [ 16 ]
+                } dispatch
+            ] [
+                {
+                    [ ]
+                    [ ]
+                    [ ]
+                } dispatch
+            ] bi
+        ] each-integer
+    ] compile-call
+] unit-test
+
+: dispatch-branch-problem ( a b c -- d )
+    dup 0 < [ "boo" throw ] when
+    1 + { [ + ] [ - ] [ * ] } dispatch ;
+
+[ 3 4 -1 dispatch-branch-problem ] [ "boo" = ] must-fail-with
+[ -1 ] [ 3 4 0 dispatch-branch-problem ] unit-test
+[ 12 ] [ 3 4 1 dispatch-branch-problem ] unit-test
+
+[ 1024 bignum ] [ 10 [ 1 >bignum swap >fixnum shift ] compile-call dup class ] unit-test
 
 ! Not sure if I want to fix this...
 ! [ t [ [ f ] [ 3 ] if >fixnum ] compile-call ] [ no-method? ] must-fail-with

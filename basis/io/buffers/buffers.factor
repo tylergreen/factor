@@ -2,8 +2,8 @@
 ! Copyright (C) 2006, 2008 Slava Pestov.
 ! See http://factorcode.org/license.txt for BSD license.
 USING: accessors alien alien.accessors alien.c-types
-alien.syntax kernel libc math sequences byte-arrays strings
-hints math.order destructors combinators ;
+alien.data alien.syntax kernel libc math sequences byte-arrays
+strings hints math.order destructors combinators ;
 IN: io.buffers
 
 TUPLE: buffer
@@ -73,7 +73,7 @@ HINTS: >buffer byte-array buffer ;
     bi ; inline
 
 : search-buffer-until ( pos fill ptr separators -- n )
-    [ [ swap alien-unsigned-1 ] dip memq? ] 2curry find-from drop ; inline
+    [ [ swap alien-unsigned-1 ] dip member-eq? ] 2curry find-from drop ; inline
 
 : finish-buffer-until ( buffer n -- byte-array separator )
     [

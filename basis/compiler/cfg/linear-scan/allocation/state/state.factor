@@ -2,8 +2,8 @@
 ! See http://factorcode.org/license.txt for BSD license.
 USING: accessors assocs combinators cpu.architecture fry heaps
 kernel math math.order namespaces sequences vectors
-compiler.cfg compiler.cfg.registers
-compiler.cfg.linear-scan.live-intervals ;
+linked-assocs compiler.cfg compiler.cfg.registers
+compiler.cfg.instructions compiler.cfg.linear-scan.live-intervals ;
 IN: compiler.cfg.linear-scan.allocation.state
 
 ! Start index of current live interval. We ensure that all
@@ -33,7 +33,7 @@ SYMBOL: active-intervals
     dup vreg>> active-intervals-for push ;
 
 : delete-active ( live-interval -- )
-    dup vreg>> active-intervals-for delq ;
+    dup vreg>> active-intervals-for remove-eq! drop ;
 
 : assign-free-register ( new registers -- )
     pop >>reg add-active ;
@@ -48,7 +48,7 @@ SYMBOL: inactive-intervals
     dup vreg>> inactive-intervals-for push ;
 
 : delete-inactive ( live-interval -- )
-    dup vreg>> inactive-intervals-for delq ;
+    dup vreg>> inactive-intervals-for remove-eq! drop ;
 
 ! Vector of handled live intervals
 SYMBOL: handled-intervals
@@ -83,7 +83,7 @@ ERROR: register-already-used live-interval ;
 ! Moving intervals between active and inactive sets
 : process-intervals ( n symbol quots -- )
     ! symbol stores an alist mapping register classes to vectors
-    [ get values ] dip '[ [ _ cond ] with filter-here ] with each ; inline
+    [ get values ] dip '[ [ _ cond ] with filter! drop ] with each ; inline
 
 : deactivate-intervals ( n -- )
     ! Any active intervals which have ended are moved to handled
@@ -118,7 +118,8 @@ SYMBOL: unhandled-intervals
 
 : next-spill-slot ( rep -- n )
     rep-size cfg get
-    [ swap [ align dup ] [ + ] bi ] change-spill-area-size drop ;
+    [ swap [ align dup ] [ + ] bi ] change-spill-area-size drop
+    <spill-slot> ;
 
 ! Minheap of sync points which still need to be processed
 SYMBOL: unhandled-sync-points
@@ -126,7 +127,7 @@ SYMBOL: unhandled-sync-points
 ! Mapping from vregs to spill slots
 SYMBOL: spill-slots
 
-: vreg-spill-slot ( vreg -- n )
+: vreg-spill-slot ( vreg -- spill-slot )
     spill-slots get [ rep-of next-spill-slot ] cache ;
 
 : init-allocator ( registers -- )
@@ -147,7 +148,8 @@ SYMBOL: spill-slots
 
 ! A utility used by register-status and spill-status words
 : free-positions ( new -- assoc )
-    vreg>> rep-of reg-class-of registers get at [ 1/0. ] H{ } map>assoc ;
+    vreg>> rep-of reg-class-of registers get at
+    [ 1/0. ] H{ } <linked-assoc> map>assoc ;
 
 : add-use-position ( n reg assoc -- ) [ [ min ] when* ] change-at ;
 

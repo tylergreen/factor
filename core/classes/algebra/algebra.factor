@@ -211,13 +211,13 @@ ERROR: topological-sort-failed ;
 : sort-classes ( seq -- newseq )
     [ name>> ] sort-with >vector
     [ dup empty? not ]
-    [ dup largest-class [ over delete-nth ] dip ]
+    [ dup largest-class [ over remove-nth! drop ] dip ]
     produce nip ;
 
-: min-class ( class seq -- class/f )
-    over [ classes-intersect? ] curry filter
-    [ drop f ] [
-        [ nip ] [ [ class<= ] with all? ] 2bi [ last ] [ drop f ] if
+: smallest-class ( classes -- class/f )
+    [ f ] [
+        natural-sort <reversed>
+        [ ] [ [ class<= ] most ] map-reduce
     ] if-empty ;
 
 GENERIC: (flatten-class) ( class -- )

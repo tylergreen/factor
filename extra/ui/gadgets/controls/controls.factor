@@ -1,7 +1,7 @@
 USING: accessors assocs arrays kernel models monads sequences
 models.combinators ui.gadgets ui.gadgets.borders ui.gadgets.buttons
-ui.gadgets.buttons.private ui.gadgets.editors words images.loader
-ui.gadgets.scrollers ui.images vocabs.parser lexer
+ui.gadgets.buttons.private ui.gadgets.editors ui.gadgets.editors.private
+words images.loader ui.gadgets.scrollers ui.images vocabs.parser lexer
 models.range ui.gadgets.sliders ;
 QUALIFIED-WITH: ui.gadgets.sliders slider
 QUALIFIED-WITH: ui.gadgets.tables tbl
@@ -59,9 +59,9 @@ M: model-field model-changed 2dup model*>> =
 : <slider> ( init page min max step -- slider ) <range> horizontal slider:<slider> ;
 
 : image-prep ( -- image ) scan current-vocab name>> "vocab:" "/icons/" surround ".tiff" surround <image-name> dup cached-image drop ;
-SYNTAX: IMG-MODEL-BTN: image-prep [ <model-btn> ] curry over push-all ;
+SYNTAX: IMG-MODEL-BTN: image-prep [ <model-btn> ] curry append! ;
 
-SYNTAX: IMG-BTN: image-prep [ swap <button> ] curry over push-all ;
+SYNTAX: IMG-BTN: image-prep [ swap <button> ] curry append! ;
 
 GENERIC: output-model ( gadget -- model )
 M: gadget output-model model>> ;

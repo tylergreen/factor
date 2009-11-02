@@ -1,4 +1,5 @@
-DEF(void,primitive_fixnum_add,(void)):
+DEF(void,primitive_fixnum_add,(void *myvm)):
+	mov ARG0, ARG2  /* save vm ptr for overflow */
 	mov (DS_REG),ARG0
 	mov -CELL_SIZE(DS_REG),ARG1
 	sub $CELL_SIZE,DS_REG
@@ -8,7 +9,8 @@ DEF(void,primitive_fixnum_add,(void)):
 	mov ARITH_TEMP_1,(DS_REG)
 	ret
 
-DEF(void,primitive_fixnum_subtract,(void)):
+DEF(void,primitive_fixnum_subtract,(void *myvm)):
+	mov ARG0, ARG2  /* save vm ptr for overflow */
 	mov (DS_REG),ARG1
 	mov -CELL_SIZE(DS_REG),ARG0
 	sub $CELL_SIZE,DS_REG
@@ -18,7 +20,8 @@ DEF(void,primitive_fixnum_subtract,(void)):
 	mov ARITH_TEMP_1,(DS_REG)
 	ret
 
-DEF(void,primitive_fixnum_multiply,(void)):
+DEF(void,primitive_fixnum_multiply,(void *myvm)):
+	push ARG0  /* save vm ptr for overflow */
 	mov (DS_REG),ARITH_TEMP_1
 	mov ARITH_TEMP_1,DIV_RESULT
 	mov -CELL_SIZE(DS_REG),ARITH_TEMP_2
@@ -27,26 +30,30 @@ DEF(void,primitive_fixnum_multiply,(void)):
 	imul ARITH_TEMP_2
 	jo multiply_overflow
 	mov DIV_RESULT,(DS_REG)
+	pop ARG2
 	ret
 multiply_overflow:
 	sar $3,ARITH_TEMP_1
 	mov ARITH_TEMP_1,ARG0
 	mov ARITH_TEMP_2,ARG1
+	pop ARG2
 	jmp MANGLE(overflow_fixnum_multiply)
 
-DEF(F_FASTCALL void,c_to_factor,(CELL quot)):
+DEF(F_FASTCALL void,c_to_factor,(CELL quot, void *vm)):
 	PUSH_NONVOLATILE
-	mov ARG0,NV_TEMP_REG
-
+	mov ARG0,NV0
+	mov ARG1,NV1
+	
 	/* Create register shadow area for Win64 */
 	sub $32,STACK_REG
-
+	
 	/* Save stack pointer */
 	lea -CELL_SIZE(STACK_REG),ARG0
 	call MANGLE(save_callstack_bottom)
-
+	
 	/* Call quot-xt */
-	mov NV_TEMP_REG,ARG0
+	mov NV0,ARG0
+	mov NV1,ARG1
 	call *QUOT_XT_OFFSET(ARG0)
 
 	/* Tear down register shadow area */
@@ -55,34 +62,16 @@ DEF(F_FASTCALL void,c_to_factor,(CELL quot)):
 	POP_NONVOLATILE
 	ret
 
-DEF(F_FASTCALL void,throw_impl,(CELL quot, F_STACK_FRAME *rewind_to)):
-	/* clear x87 stack, but preserve rounding mode and exception flags */
-	sub $2,STACK_REG
-	fnstcw (STACK_REG)
-	fninit
-	fldcw (STACK_REG)
-	/* rewind_to */
-	mov ARG1,STACK_REG                    
-	jmp *QUOT_XT_OFFSET(ARG0)
-
-DEF(F_FASTCALL void,lazy_jit_compile,(CELL quot)):
-	mov STACK_REG,ARG1           /* Save stack pointer */
-	sub $STACK_PADDING,STACK_REG
-	call MANGLE(lazy_jit_compile_impl)
-	mov RETURN_REG,ARG0          /* No-op on 32-bit */
-	add $STACK_PADDING,STACK_REG
-        jmp *QUOT_XT_OFFSET(ARG0)    /* Call the quotation */
-
 /* cpu.x86.features calls this */
 DEF(bool,sse_version,(void)):
 	mov $0x1,RETURN_REG
 	cpuid
-	/* test $0x100000,%ecx
+	test $0x100000,%ecx
 	jnz sse_42
 	test $0x80000,%ecx
 	jnz sse_41
 	test $0x200,%ecx
-	jnz ssse_3 */
+	jnz ssse_3
 	test $0x1,%ecx
 	jnz sse_3
 	test $0x4000000,%edx
@@ -109,6 +98,7 @@ sse_2:
 sse_1:
 	mov $10,RETURN_REG
 	ret
+
 #ifdef WINDOWS
 	.section .drectve
 	.ascii " -export:sse_version"

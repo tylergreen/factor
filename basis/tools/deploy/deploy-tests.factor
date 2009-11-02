@@ -1,9 +1,9 @@
+USING: tools.test system io io.encodings.ascii io.pathnames
+io.files io.files.info io.files.temp kernel tools.deploy.config
+tools.deploy.config.editor tools.deploy.backend math sequences
+io.launcher arrays namespaces continuations layouts accessors
+urls math.parser io.directories tools.deploy.test ;
 IN: tools.deploy.tests
-USING: tools.test system io.pathnames io.files io.files.info
-io.files.temp kernel tools.deploy.config tools.deploy.config.editor
-tools.deploy.backend math sequences io.launcher arrays namespaces
-continuations layouts accessors io.encodings.ascii urls math.parser
-io.directories tools.deploy.test ;
 
 [ t ] [ "hello-world" shake-and-bake 500000 small-enough? ] unit-test
 
@@ -11,7 +11,7 @@ io.directories tools.deploy.test ;
 
 [ t ] [ "hello-ui" shake-and-bake 1300000 small-enough? ] unit-test
 
-[ "staging.math-threads-compiler-ui-strip.image" ] [
+[ "staging.math-threads-compiler-ui.image" ] [
     "hello-ui" deploy-config
     [ bootstrap-profile staging-image-name file-name ] bind
 ] unit-test
@@ -22,7 +22,7 @@ io.directories tools.deploy.test ;
 
 [ t ] [ "spheres" shake-and-bake 1500000 small-enough? ] unit-test
 
-[ t ] [ "terrain" shake-and-bake 1600000 small-enough? ] unit-test
+[ t ] [ "terrain" shake-and-bake 1700000 small-enough? ] unit-test
 
 [ t ] [ "bunny" shake-and-bake 2500000 small-enough? ] unit-test
 
@@ -106,3 +106,12 @@ os windows? os macosx? or [
 os macosx? [
     [ ] [ "tools.deploy.test.14" shake-and-bake run-temp-image ] unit-test
 ] when
+
+[ { "a" "b" "c" } ] [
+    "tools.deploy.test.15" shake-and-bake deploy-test-command
+    { "a" "b" "c" } append
+    ascii [ lines ] with-process-reader
+    rest
+] unit-test
+
+[ ] [ "tools.deploy.test.16" shake-and-bake run-temp-image ] unit-test

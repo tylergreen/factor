@@ -24,7 +24,7 @@ HELP: <scroller>
 { <viewport> <scroller> } related-words
 
 HELP: set-scroll-position
-{ $values { "scroller" scroller } { "value" "a pair of integers" } }
+{ $values { "value" "a pair of integers" } { "scroller" scroller } }
 { $description "Sets the offset of the top-left corner of the scroller's " { $link viewport } "'s child." } ;
 
 HELP: relative-scroll-rect
@@ -45,15 +45,21 @@ HELP: scroll>top
 
 ARTICLE: "ui.gadgets.scrollers" "Scroller gadgets"
 "The " { $vocab-link "ui.gadgets.scrollers" } " vocabulary implements scroller gadgets. A scroller displays a gadget which is larger than the visible area."
-{ $subsection scroller }
-{ $subsection <scroller> }
+{ $subsections
+    scroller
+    <scroller>
+}
 "Getting and setting the scroll position:"
-{ $subsection scroll-position }
-{ $subsection set-scroll-position }
+{ $subsections
+    scroll-position
+    set-scroll-position
+}
 "Writing scrolling-aware gadgets:"
-{ $subsection scroll>bottom }
-{ $subsection scroll>top }
-{ $subsection scroll>rect }
-{ $subsection find-scroller } ;
+{ $subsections
+    scroll>bottom
+    scroll>top
+    scroll>rect
+    find-scroller
+} ;
 
 ABOUT: "ui.gadgets.scrollers"

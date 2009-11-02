@@ -1,11 +1,9 @@
 ! Copyright (C) 2008 Slava Pestov.
 ! See http://factorcode.org/license.txt for BSD license.
 USING: accessors arrays sequences math splitting make assocs kernel
-layouts system alien.c-types cpu.architecture
+layouts system alien.c-types classes.struct cpu.architecture 
 cpu.x86.assembler cpu.x86.assembler.operands cpu.x86 compiler.codegen
 compiler.cfg.registers ;
-QUALIFIED: alien.structs
-QUALIFIED: classes.struct
 IN: cpu.x86.64.unix
 
 M: int-regs param-regs
@@ -14,11 +12,12 @@ M: int-regs param-regs
 M: float-regs param-regs
     drop { XMM0 XMM1 XMM2 XMM3 XMM4 XMM5 XMM6 XMM7 } ;
 
-M: x86.64 reserved-area-size 0 ;
+M: x86.64 reserved-stack-space 0 ;
 
-! The ABI for passing structs by value is pretty messed up
-<< "void*" c-type clone "__stack_value" define-primitive-type
-stack-params "__stack_value" c-type (>>rep) >>
+SYMBOL: (stack-value)
+! The ABI for passing structs by value is pretty great
+<< void* c-type clone \ (stack-value) define-primitive-type
+stack-params \ (stack-value) c-type (>>rep) >>
 
 : struct-types&offset ( struct-type -- pairs )
     fields>> [
@@ -33,12 +32,12 @@ stack-params "__stack_value" c-type (>>rep) >>
 : flatten-small-struct ( c-type -- seq )
     struct-types&offset split-struct [
         [ c-type c-type-rep reg-class-of ] map
-        int-regs swap member? "void*" "double" ? c-type
+        int-regs swap member? void* double ? c-type
     ] map ;
 
 : flatten-large-struct ( c-type -- seq )
     heap-size cell align
-    cell /i "__stack_value" c-type <repetition> ;
+    cell /i \ (stack-value) c-type <repetition> ;
 
 : flatten-struct ( c-type -- seq )
     dup heap-size 16 > [
@@ -47,9 +46,7 @@ stack-params "__stack_value" c-type (>>rep) >>
         flatten-small-struct
     ] if ;
 
-M: alien.structs:struct-type flatten-value-type ( type -- seq )
-    flatten-struct ;
-M: classes.struct:struct-c-type flatten-value-type ( type -- seq )
+M: struct-c-type flatten-value-type ( type -- seq )
     flatten-struct ;
 
 M: x86.64 return-struct-in-registers? ( c-type -- ? )

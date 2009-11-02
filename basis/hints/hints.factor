@@ -3,8 +3,9 @@
 USING: accessors arrays assocs byte-arrays byte-vectors classes
 combinators definitions effects fry generic generic.single
 generic.standard hashtables io.binary io.streams.string kernel
-kernel.private math math.parser namespaces parser sbufs
-sequences splitting splitting.private strings vectors words ;
+kernel.private math math.integers.private math.parser math.parser.private
+namespaces parser sbufs sequences splitting splitting.private strings
+vectors words ;
 IN: hints
 
 GENERIC: specializer-predicate ( spec -- quot )
@@ -37,8 +38,8 @@ M: object specializer-declaration class ;
         [ [ specializer-declaration ] map swap '[ _ declare @ ] ] 2bi
     ] with { } map>assoc ;
 
-: specialize-quot ( quot word specializer -- quot' )
-    [ drop nip def>> ] [ nip specializer-cases ] 3bi alist>quot ;
+: specialize-quot ( quot specializer -- quot' )
+    [ drop ] [ specializer-cases ] 2bi alist>quot ;
 
 ! compiler.tree.propagation.inlining sets this to f
 SYMBOL: specialize-method?
@@ -52,8 +53,8 @@ t specialize-method? set-global
 
 : specialize-method ( quot method -- quot' )
     [ specialize-method? get [ method-declaration prepend ] [ drop ] if ]
-    [ dup "method-generic" word-prop specializer ] bi
-    [ specialize-quot ] [ drop ] if* ;
+    [ "method-generic" word-prop ] bi
+    specializer [ specialize-quot ] when* ;
 
 : standard-method? ( method -- ? )
     dup method-body? [
@@ -64,7 +65,7 @@ t specialize-method? set-global
     [ def>> ] keep
     dup generic? [ drop ] [
         [ dup standard-method? [ specialize-method ] [ drop ] if ]
-        [ dup specializer [ specialize-quot ] [ drop ] if* ]
+        [ specializer [ specialize-quot ] when* ]
         bi
     ] if ;
 
@@ -78,9 +79,6 @@ SYNTAX: HINTS:
     [ parse-definition { } like "specializer" set-word-prop ] tri ;
 
 ! Default specializers
-{ first first2 first3 first4 }
-[ { array } "specializer" set-word-prop ] each
-
 { last pop* pop } [
     { vector } "specializer" set-word-prop
 ] each
@@ -103,7 +101,7 @@ SYNTAX: HINTS:
 { { fixnum fixnum string } { fixnum fixnum array } }
 "specializer" set-word-prop
 
-\ reverse-here
+\ reverse!
 { { string } { array } }
 "specializer" set-word-prop
 
@@ -121,7 +119,7 @@ SYNTAX: HINTS:
 
 \ split, { string string } "specializer" set-word-prop
 
-\ memq? { array } "specializer" set-word-prop
+\ member-eq? { array } "specializer" set-word-prop
 
 \ member? { array } "specializer" set-word-prop
 
@@ -136,3 +134,11 @@ SYNTAX: HINTS:
 M\ hashtable at* { { fixnum object } { word object } } "specializer" set-word-prop
 
 M\ hashtable set-at { { object fixnum object } { object word object } } "specializer" set-word-prop
+
+\ dec>float { string } "specializer" set-word-prop
+
+\ hex>float { string } "specializer" set-word-prop
+
+\ string>integer { string fixnum } "specializer" set-word-prop
+
+\ bignum/f { { bignum bignum } { bignum fixnum } { fixnum bignum } { fixnum fixnum } } "specializer" set-word-prop

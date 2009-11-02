@@ -46,9 +46,6 @@ inline static cell align8(cell a)
 #define OBJECT_TYPE 6
 #define TUPLE_TYPE 7
 
-/* Canonical F object */
-#define F F_TYPE
-
 #define HEADER_TYPE 8 /* anything less than this is a tag */
 
 #define GC_COLLECTED 5 /* can be anything other than FIXNUM_TYPE */
@@ -64,8 +61,9 @@ inline static cell align8(cell a)
 
 #define TYPE_COUNT 15
 
-/* Not a real type, but code_block's type field can be set to this */
-#define PIC_TYPE 69
+/* Not real types, but code_block's type can be set to this */
+#define PIC_TYPE 16
+#define FREE_BLOCK_TYPE 17
 
 /* Constants used when floating-point trap exceptions are thrown */
 enum
@@ -77,9 +75,12 @@ enum
 	FP_TRAP_INEXACT           = 1 << 4,
 };
 
+/* What Factor calls 'f' */
+static const cell false_object = F_TYPE;
+
 inline static bool immediate_p(cell obj)
 {
-	return (obj == F || TAG(obj) == FIXNUM_TYPE);
+	return (obj == false_object || TAG(obj) == FIXNUM_TYPE);
 }
 
 inline static fixnum untag_fixnum(cell tagged)
@@ -106,9 +107,9 @@ struct header {
 	cell value;
 
         /* Default ctor to make gcc 3.x happy */
-        header() { abort(); }
+        explicit header() { abort(); }
 
-	header(cell value_) : value(value_ << TAG_BITS) {}
+	explicit header(cell value_) : value(value_ << TAG_BITS) {}
 
 	void check_header() {
 #ifdef FACTOR_DEBUG
@@ -179,7 +180,7 @@ struct byte_array : public object {
 	/* tagged */
 	cell capacity;
 
-	template<typename T> T *data() { return (T *)(this + 1); }
+	template<typename Scalar> Scalar *data() { return (Scalar *)(this + 1); }
 };
 
 /* Assembly code makes assumptions about the layout of this struct */
@@ -196,34 +197,34 @@ struct string : public object {
 };
 
 /* The compiled code heap is structured into blocks. */
-enum block_status
-{
-	B_FREE,
-	B_ALLOCATED,
-	B_MARKED
-};
-
 struct heap_block
 {
-	unsigned char status; /* free or allocated? */
-	unsigned char type; /* this is WORD_TYPE or QUOTATION_TYPE */
-	unsigned char last_scan; /* the youngest generation in which this block's literals may live */
-	unsigned char needs_fixup; /* is this a new block that needs full fixup? */
+	cell header;
 
-	/* In bytes, includes this header */
-	cell size;
+	cell type() { return (header >> 1) & 0x1f; }
+	void set_type(cell type)
+	{
+		header = ((header & ~(0x1f << 1)) | (type << 1));
+	}
+
+	cell size() { return (header >> 6); }
+	void set_size(cell size)
+	{
+		header = (header & 0x2f) | (size << 6);
+	}
 };
 
 struct free_heap_block : public heap_block
 {
-        free_heap_block *next_free;
+	free_heap_block *next_free;
 };
 
 struct code_block : public heap_block
 {
-	cell literals; /* # bytes */
+	cell owner; /* tagged pointer to word, quotation or f */
+	cell literals; /* tagged pointer to array or f */
 	cell relocation; /* tagged pointer to byte-array or f */
-	
+
 	void *xt() { return (void *)(this + 1); }
 };
 
@@ -292,7 +293,7 @@ struct quotation : public object {
 struct alien : public object {
 	static const cell type_number = ALIEN_TYPE;
 	/* tagged */
-	cell alien;
+	cell base;
 	/* tagged */
 	cell expired;
 	/* untagged */

@@ -3,8 +3,9 @@ math math.constants math.private math.integers.private sequences
 strings tools.test words continuations sequences.private
 hashtables.private byte-arrays system random layouts vectors
 sbufs strings.private slots.private alien math.order
-alien.accessors alien.c-types alien.syntax alien.strings
+alien.accessors alien.c-types alien.data alien.syntax alien.strings
 namespaces libc io.encodings.ascii classes compiler ;
+FROM: math => float ;
 IN: compiler.tests.intrinsics
 
 ! Make sure that intrinsic ops compile to correct code.
@@ -86,14 +87,17 @@ IN: compiler.tests.intrinsics
 [ 4 ] [ 12 7 [ fixnum-bitand ] compile-call ] unit-test
 [ 4 ] [ 12 [ 7 fixnum-bitand ] compile-call ] unit-test
 [ 4 ] [ [ 12 7 fixnum-bitand ] compile-call ] unit-test
+[ -16 ] [ -1 [ -16 fixnum-bitand ] compile-call ] unit-test
 
 [ 15 ] [ 12 7 [ fixnum-bitor ] compile-call ] unit-test
 [ 15 ] [ 12 [ 7 fixnum-bitor ] compile-call ] unit-test
 [ 15 ] [ [ 12 7 fixnum-bitor ] compile-call ] unit-test
+[ -1 ] [ -1 [ -16 fixnum-bitor ] compile-call ] unit-test
 
 [ 11 ] [ 12 7 [ fixnum-bitxor ] compile-call ] unit-test
 [ 11 ] [ 12 [ 7 fixnum-bitxor ] compile-call ] unit-test
 [ 11 ] [ [ 12 7 fixnum-bitxor ] compile-call ] unit-test
+[ 15 ] [ -1 [ -16 fixnum-bitxor ] compile-call ] unit-test
 
 [ f ] [ 12 7 [ fixnum< [ t ] [ f ] if ] compile-call ] unit-test
 [ f ] [ 12 [ 7 fixnum< [ t ] [ f ] if ] compile-call ] unit-test

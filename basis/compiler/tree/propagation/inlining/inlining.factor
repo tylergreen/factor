@@ -52,7 +52,7 @@ M: callable splicing-nodes splicing-body ;
         2dup [ in-d>> length ] [ dispatch# ] bi* <= [ 2drop f f ] [
             [ in-d>> <reversed> ] [ [ dispatch# ] keep ] bi*
             [ swap nth value-info class>> dup ] dip
-            specific-method
+            method-for-class
         ] if
     ] if ;
 
@@ -90,7 +90,7 @@ M: callable splicing-nodes splicing-body ;
 ! Method body inlining
 SYMBOL: history
 
-: already-inlined? ( obj -- ? ) history get memq? ;
+: already-inlined? ( obj -- ? ) history get member-eq? ;
 
 : add-to-history ( obj -- ) history [ swap suffix ] change ;
 
@@ -104,7 +104,7 @@ SYMBOL: history
     ] if ;
 
 : always-inline-word? ( word -- ? )
-    { curry compose } memq? ;
+    { curry compose } member-eq? ;
 
 : never-inline-word? ( word -- ? )
     { [ deferred? ] [ "default" word-prop ] [ \ call eq? ] } 1|| ;

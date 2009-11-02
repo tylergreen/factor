@@ -39,7 +39,7 @@ M: float ^n (^n) ;
 M: complex ^n (^n) ;
 
 : integer^ ( x y -- z )
-    dup 0 > [ ^n ] [ neg ^n recip ] if ; inline
+    dup 0 >= [ ^n ] [ [ recip ] dip neg ^n ] if ; inline
 
 PRIVATE>
 
@@ -106,6 +106,8 @@ PRIVATE>
         [ ^complex ]
     } cond ; inline
 
+: nth-root ( n x -- y ) swap recip ^ ; inline
+
 : gcd ( x y -- a d )
     [ 0 1 ] 2dip (gcd) dup 0 < [ neg ] when ; foldable
 
@@ -137,13 +139,12 @@ M: real absq sq ; inline
     [ - abs ] dip < ;
 
 : ~rel ( x y epsilon -- ? )
-    [ [ - abs ] 2keep [ abs ] bi@ + ] dip * < ;
+    [ [ - abs ] 2keep [ abs ] bi@ + ] dip * <= ;
 
 : ~ ( x y epsilon -- ? )
     {
-        { [ 2over [ fp-nan? ] either? ] [ 3drop f ] }
         { [ dup zero? ] [ drop number= ] }
-        { [ dup 0 < ] [ ~rel ] }
+        { [ dup 0 < ] [ neg ~rel ] }
         [ ~abs ]
     } cond ;
 
@@ -305,4 +306,3 @@ M: real atan >float atan ; inline
     [ [ / floor ] [ * ] bi ] unless-zero ;
 
 : lerp ( a b t -- a_t ) [ over - ] dip * + ; inline
-

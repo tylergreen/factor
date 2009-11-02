@@ -75,28 +75,16 @@ PRIVATE>
 : parse-multiline-string ( end-text -- str )
     1 (parse-multiline-string) ;
 
-SYNTAX: <"
-    "\">" parse-multiline-string parsed ;
-
-SYNTAX: <'
-    "'>" parse-multiline-string parsed ;
-
-SYNTAX: {'
-    "'}" parse-multiline-string parsed ;
-
-SYNTAX: {"
-    "\"}" parse-multiline-string parsed ;
-
 SYNTAX: /* "*/" parse-multiline-string drop ;
 
 SYNTAX: HEREDOC:
     lexer get skip-blank
     rest-of-line
     lexer get next-line
-    parse-til-line-begins parsed ;
+    parse-til-line-begins suffix! ;
 
 SYNTAX: DELIMITED:
     lexer get skip-blank
     rest-of-line
     lexer get next-line
-    0 (parse-multiline-string) parsed ;
+    0 (parse-multiline-string) suffix! ;

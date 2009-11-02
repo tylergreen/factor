@@ -4,8 +4,8 @@ USING: alien alien.c-types alien.strings alien.syntax kernel
 math sequences namespaces make assocs init accessors
 continuations combinators io.encodings.utf8 destructors locals
 arrays specialized-arrays classes.struct core-foundation
-core-foundation.run-loop core-foundation.strings
-core-foundation.time ;
+core-foundation.arrays core-foundation.run-loop
+core-foundation.strings core-foundation.time unix.types ;
 IN: core-foundation.fsevents
 
 SPECIALIZED-ARRAY: void*
@@ -36,8 +36,8 @@ STRUCT: FSEventStreamContext
     { release void* }
     { copyDescription void* } ;
 
-! callback(FSEventStreamRef streamRef, void *clientCallBackInfo, size_t numEvents, void *eventPaths, const FSEventStreamEventFlags eventFlags[], const FSEventStreamEventId eventIds[]);
-TYPEDEF: void* FSEventStreamCallback
+! callback(
+CALLBACK: void FSEventStreamCallback ( FSEventStreamRef streamRef, void* clientCallBackInfo, size_t numEvents, void* eventPaths, FSEventStreamEventFlags* eventFlags, FSEventStreamEventId* eventIds ) ;
 
 CONSTANT: FSEventStreamEventIdSinceNow HEX: FFFFFFFFFFFFFFFF
 

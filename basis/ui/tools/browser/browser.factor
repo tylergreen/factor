@@ -1,19 +1,19 @@
 ! Copyright (C) 2006, 2009 Slava Pestov.
 ! See http://factorcode.org/license.txt for BSD license.
-USING: debugger classes help help.topics help.crossref help.home
-kernel models compiler.units assocs words vocabs accessors fry arrays
-combinators.short-circuit namespaces sequences help.apropos
-combinators ui ui.commands ui.gadgets ui.gadgets.panes
-ui.gadgets.scrollers ui.gadgets.tracks ui.gestures ui.gadgets.buttons
-ui.gadgets.packs ui.gadgets.editors ui.gadgets.labels
-ui.gadgets.status-bar ui.gadgets.glass ui.gadgets.borders
-ui.gadgets.viewports ui.tools.common ui.tools.browser.popups
-ui.tools.browser.history ;
+USING: accessors arrays assocs classes combinators
+combinators.short-circuit compiler.units debugger fry help
+help.apropos help.crossref help.home help.topics kernel models
+sequences ui ui.commands ui.gadgets ui.gadgets.borders
+ui.gadgets.buttons ui.gadgets.editors ui.gadgets.glass
+ui.gadgets.labels ui.gadgets.panes ui.gadgets.scrollers
+ui.gadgets.status-bar ui.gadgets.tracks ui.gadgets.viewports
+ui.gestures ui.tools.browser.history ui.tools.browser.popups
+ui.tools.common vocabs ;
 IN: ui.tools.browser
 
 TUPLE: browser-gadget < tool history scroller search-field popup ;
 
-{ 650 400 } browser-gadget set-tool-dim
+{ 650 700 } browser-gadget set-tool-dim
 
 M: browser-gadget history-value
     [ control-value ] [ scroller>> scroll-position ]
@@ -95,8 +95,10 @@ M: browser-gadget focusable-child* search-field>> ;
     "help.home" (browser-window) ;
 
 : error-help-window ( error -- )
-    [ error-help ]
-    [ dup tuple? [ class ] [ drop "errors" ] if ] bi or (browser-window) ;
+    {
+        [ error-help ]
+        [ dup tuple? [ class ] [ drop "errors" ] if ]
+    } 1|| (browser-window) ;
 
 \ browser-window H{ { +nullary+ t } } define-command
 
@@ -119,13 +121,17 @@ M: browser-gadget focusable-child* search-field>> ;
 
 : browser-help ( -- ) "ui-browser" com-browse ;
 
+: glossary ( -- ) "conventions" com-browse ;
+
 \ browser-help H{ { +nullary+ t } } define-command
+\ glossary H{ { +nullary+ t } } define-command
 
 browser-gadget "toolbar" f {
     { T{ key-down f { A+ } "LEFT" } com-back }
     { T{ key-down f { A+ } "RIGHT" } com-forward }
     { T{ key-down f { A+ } "H" } com-home }
     { T{ key-down f f "F1" } browser-help }
+    { T{ key-down f { A+ } "F1" } glossary }
 } define-command-map
 
 : ?show-help ( link browser -- )

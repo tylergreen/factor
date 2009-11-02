@@ -2,13 +2,15 @@
 ! See http://factorcode.org/license.txt for BSD license.
 USING: accessors assocs sequences kernel combinators make math
 math.order math.ranges system namespaces locals layouts words
-alien alien.accessors alien.c-types literals cpu.architecture
+alien alien.accessors alien.c-types alien.data literals cpu.architecture
 cpu.ppc.assembler cpu.ppc.assembler.backend compiler.cfg.registers
 compiler.cfg.instructions compiler.cfg.comparisons
 compiler.codegen.fixup compiler.cfg.intrinsics
 compiler.cfg.stack-frame compiler.cfg.build-stack-frame
-compiler.units compiler.constants compiler.codegen ;
+compiler.units compiler.constants compiler.codegen vm ;
 FROM: cpu.ppc.assembler => B ;
+FROM: layouts => cell ;
+FROM: math => float ;
 IN: cpu.ppc
 
 ! PowerPC register assignments:
@@ -29,6 +31,15 @@ enable-float-intrinsics
 \ ##float>integer t frame-required? set-word-prop
 >>
 
+: %load-vm-addr ( reg -- )
+    0 swap LOAD32 0 rc-absolute-ppc-2/2 rel-vm ;
+
+: %load-vm-field-addr ( reg symbol -- )
+    [ 0 swap LOAD32 ] dip
+    vm-field-offset rc-absolute-ppc-2/2 rel-vm ;
+
+M: ppc %vm-field-ptr ( dst field -- ) %load-vm-field-addr ;
+
 M: ppc machine-registers
     {
         { int-regs $[ 2 12 [a,b] 15 29 [a,b] append ] }
@@ -37,8 +48,6 @@ M: ppc machine-registers
 
 CONSTANT: scratch-reg 30
 CONSTANT: fp-scratch-reg 30
-
-M: ppc two-operand? f ;
 
 M: ppc %load-immediate ( reg n -- ) swap LOAD ;
 
@@ -128,17 +137,10 @@ M:: ppc %dispatch ( src temp -- )
     temp MTCTR
     BCTR ;
 
-:: (%slot) ( obj slot tag temp -- reg offset )
-    temp slot obj ADD
-    temp tag neg ; inline
-
-: (%slot-imm) ( obj slot tag -- reg offset )
-    [ cells ] dip - ; inline
-
-M: ppc %slot ( dst obj slot tag temp -- ) (%slot) LWZ ;
-M: ppc %slot-imm ( dst obj slot tag -- ) (%slot-imm) LWZ ;
-M: ppc %set-slot ( src obj slot tag temp -- ) (%slot) STW ;
-M: ppc %set-slot-imm ( src obj slot tag -- ) (%slot-imm) STW ;
+M: ppc %slot ( dst obj slot -- ) swapd LWZX ;
+M: ppc %slot-imm ( dst obj slot tag -- ) slot-offset LWZ ;
+M: ppc %set-slot ( src obj slot -- ) swapd STWX ;
+M: ppc %set-slot-imm ( src obj slot tag -- ) slot-offset STW ;
 
 M:: ppc %string-nth ( dst src index temp -- )
     [
@@ -179,6 +181,7 @@ M: ppc %shr-imm swapd SRWI ;
 M: ppc %sar     SRAW ;
 M: ppc %sar-imm SRAWI ;
 M: ppc %not     NOT ;
+M: ppc %neg     NEG ;
 
 :: overflow-template ( label dst src1 src2 insn -- )
     0 0 LI
@@ -194,59 +197,6 @@ M: ppc %fixnum-sub ( label dst src1 src2 -- )
 
 M: ppc %fixnum-mul ( label dst src1 src2 -- )
     [ MULLWO. ] overflow-template ;
-
-: bignum@ ( n -- offset ) cells bignum tag-number - ; inline
-
-M:: ppc %integer>bignum ( dst src temp -- )
-    [
-        "end" define-label
-        dst 0 >bignum %load-reference
-        ! Is it zero? Then just go to the end and return this zero
-        0 src 0 CMPI
-        "end" get BEQ
-        ! Allocate a bignum
-        dst 4 cells bignum temp %allot
-        ! Write length
-        2 tag-fixnum temp LI
-        temp dst 1 bignum@ STW
-        ! Compute sign
-        temp src MR
-        temp temp cell-bits 1 - SRAWI
-        temp temp 1 ANDI
-        ! Store sign
-        temp dst 2 bignum@ STW
-        ! Make negative value positive
-        temp temp temp ADD
-        temp temp NEG
-        temp temp 1 ADDI
-        temp src temp MULLW
-        ! Store the bignum
-        temp dst 3 bignum@ STW
-        "end" resolve-label
-    ] with-scope ;
-
-M:: ppc %bignum>integer ( dst src temp -- )
-    [
-        "end" define-label
-        temp src 1 bignum@ LWZ
-        ! if the length is 1, its just the sign and nothing else,
-        ! so output 0
-        0 dst LI
-        0 temp 1 tag-fixnum CMPI
-        "end" get BEQ
-        ! load the value
-        dst src 3 bignum@ LWZ
-        ! load the sign
-        temp src 2 bignum@ LWZ
-        ! branchless arithmetic: we want to turn 0 into 1,
-        ! and 1 into -1
-        temp temp temp ADD
-        temp temp 1 SUBI
-        temp temp NEG
-        ! multiply value by sign
-        dst dst temp MULLW
-        "end" resolve-label
-    ] with-scope ;
 
 M: ppc %add-float FADD ;
 M: ppc %sub-float FSUB ;
@@ -270,22 +220,23 @@ M:: ppc %float>integer ( dst src -- )
     dst 1 4 scratch@ LWZ ;
 
 M: ppc %copy ( dst src rep -- )
-    {
-        { int-rep [ MR ] }
-        { double-rep [ FMR ] }
-    } case ;
+    2over eq? [ 3drop ] [
+        {
+            { int-rep [ MR ] }
+            { double-rep [ FMR ] }
+        } case
+    ] if ;
 
-M: ppc %unbox-float ( dst src -- ) float-offset LFD ;
+GENERIC: float-function-param* ( dst src -- )
 
-M:: ppc %box-float ( dst src temp -- )
-    dst 16 float temp %allot
-    src dst float-offset STFD ;
+M: spill-slot float-function-param* [ 1 ] dip n>> spill@ LFD ;
+M: integer float-function-param* FMR ;
 
-: float-function-param ( i spill-slot -- )
-    [ float-regs param-regs nth 1 ] [ n>> spill@ ] bi* LFD ;
+: float-function-param ( i src -- )
+    [ float-regs param-regs nth ] dip float-function-param* ;
 
 : float-function-return ( reg -- )
-    float-regs return-reg 2dup = [ 2drop ] [ FMR ] if ;
+    float-regs return-reg double-rep %copy ;
 
 M:: ppc %unary-float-function ( dst src func -- )
     0 src float-function-param
@@ -299,9 +250,8 @@ M:: ppc %binary-float-function ( dst src1 src2 func -- )
     dst float-function-return ;
 
 ! Internal format is always double-precision on PowerPC
-M: ppc %single>double-float FMR ;
-
-M: ppc %double>single-float FMR ;
+M: ppc %single>double-float double-rep %copy ;
+M: ppc %double>single-float FRSP ;
 
 M: ppc %unbox-alien ( dst src -- )
     alien-offset LWZ ;
@@ -398,34 +348,34 @@ M:: ppc %box-displaced-alien ( dst displacement base displacement' base' base-cl
         "end" resolve-label
     ] with-scope ;
 
-M: ppc %alien-unsigned-1 0 LBZ ;
-M: ppc %alien-unsigned-2 0 LHZ ;
+M: ppc %alien-unsigned-1 LBZ ;
+M: ppc %alien-unsigned-2 LHZ ;
 
-M: ppc %alien-signed-1 dupd 0 LBZ dup EXTSB ;
-M: ppc %alien-signed-2 0 LHA ;
+M: ppc %alien-signed-1 [ dup ] 2dip LBZ dup EXTSB ;
+M: ppc %alien-signed-2 LHA ;
 
-M: ppc %alien-cell 0 LWZ ;
+M: ppc %alien-cell LWZ ;
 
-M: ppc %alien-float 0 LFS ;
-M: ppc %alien-double 0 LFD ;
+M: ppc %alien-float LFS ;
+M: ppc %alien-double LFD ;
 
-M: ppc %set-alien-integer-1 swap 0 STB ;
-M: ppc %set-alien-integer-2 swap 0 STH ;
+M: ppc %set-alien-integer-1 -rot STB ;
+M: ppc %set-alien-integer-2 -rot STH ;
 
-M: ppc %set-alien-cell swap 0 STW ;
+M: ppc %set-alien-cell -rot STW ;
 
-M: ppc %set-alien-float swap 0 STFS ;
-M: ppc %set-alien-double swap 0 STFD ;
+M: ppc %set-alien-float -rot STFS ;
+M: ppc %set-alien-double -rot STFD ;
 
 : load-zone-ptr ( reg -- )
-    "nursery" f %alien-global ;
+    "nursery" %load-vm-field-addr ;
 
 : load-allot-ptr ( nursery-ptr allot-ptr -- )
-    [ drop load-zone-ptr ] [ swap 4 LWZ ] 2bi ;
+    [ drop load-zone-ptr ] [ swap 0 LWZ ] 2bi ;
 
 :: inc-allot-ptr ( nursery-ptr allot-ptr n -- )
     scratch-reg allot-ptr n 8 align ADDI
-    scratch-reg nursery-ptr 4 STW ;
+    scratch-reg nursery-ptr 0 STW ;
 
 :: store-header ( dst class -- )
     class type-number tag-fixnum scratch-reg LI
@@ -441,30 +391,37 @@ M:: ppc %allot ( dst size class nursery-ptr -- )
     dst class store-tagged ;
 
 : load-cards-offset ( dst -- )
-    [ "cards_offset" f %alien-global ] [ dup 0 LWZ ] bi ;
+    0 swap LOAD32 rc-absolute-ppc-2/2 rel-cards-offset ;
 
 : load-decks-offset ( dst -- )
-    [ "decks_offset" f %alien-global ] [ dup 0 LWZ ] bi  ;
+    0 swap LOAD32 rc-absolute-ppc-2/2 rel-decks-offset ;
 
-M:: ppc %write-barrier ( src card# table -- )
+:: (%write-barrier) ( temp1 temp2 -- )
     card-mark scratch-reg LI
 
     ! Mark the card
-    table load-cards-offset
-    src card# card-bits SRWI
-    table scratch-reg card# STBX
+    temp1 temp1 card-bits SRWI
+    temp2 load-cards-offset
+    temp1 scratch-reg temp2 STBX
 
     ! Mark the card deck
-    table load-decks-offset
-    src card# deck-bits SRWI
-    table scratch-reg card# STBX ;
+    temp1 temp1 deck-bits card-bits - SRWI
+    temp2 load-decks-offset
+    temp1 scratch-reg temp2 STBX ;
 
-M:: ppc %check-nursery ( label temp1 temp2 -- )
+M:: ppc %write-barrier ( src slot temp1 temp2 -- )
+    temp1 src slot ADD
+    temp1 temp2 (%write-barrier) ;
+
+M:: ppc %write-barrier-imm ( src slot temp1 temp2 -- )
+    temp1 src slot ADDI
+    temp1 temp2 (%write-barrier) ;
+
+M:: ppc %check-nursery ( label size temp1 temp2 -- )
     temp2 load-zone-ptr
-    temp1 temp2 cell LWZ
-    temp2 temp2 3 cells LWZ
-    ! add ALLOT_BUFFER_ZONE to here
-    temp1 temp1 1024 ADDI
+    temp1 temp2 0 LWZ
+    temp2 temp2 2 cells LWZ
+    temp1 temp1 size ADDI
     ! is here >= end?
     temp1 0 temp2 CMP
     label BLE ;
@@ -475,9 +432,10 @@ M:: ppc %save-gc-root ( gc-root register -- )
 M:: ppc %load-gc-root ( gc-root register -- )
     register 1 gc-root gc-root@ LWZ ;
 
-M:: ppc %call-gc ( gc-root-count -- )
+M:: ppc %call-gc ( gc-root-count temp -- )
     3 1 gc-root-base local@ ADDI
     gc-root-count 4 LI
+    5 %load-vm-addr
     "inline_gc" f %alien-invoke ;
 
 M: ppc %prologue ( n -- )
@@ -546,11 +504,11 @@ M: ppc %compare [ (%compare) ] 2dip %boolean ;
 M: ppc %compare-imm [ (%compare-imm) ] 2dip %boolean ;
 
 M:: ppc %compare-float-ordered ( dst src1 src2 cc temp -- )
-    src1 src2 cc negate-cc \ (%compare-float-ordered) (%compare-float) :> branch2 :> branch1
+    src1 src2 cc negate-cc \ (%compare-float-ordered) (%compare-float) :> ( branch1 branch2 )
     dst temp branch1 branch2 (%boolean) ;
 
 M:: ppc %compare-float-unordered ( dst src1 src2 cc temp -- )
-    src1 src2 cc negate-cc \ (%compare-float-unordered) (%compare-float) :> branch2 :> branch1
+    src1 src2 cc negate-cc \ (%compare-float-unordered) (%compare-float) :> ( branch1 branch2 )
     dst temp branch1 branch2 (%boolean) ;
 
 :: %branch ( label cc -- )
@@ -576,11 +534,11 @@ M:: ppc %compare-imm-branch ( label src1 src2 cc -- )
     branch2 [ label branch2 execute( label -- ) ] when ; inline
 
 M:: ppc %compare-float-ordered-branch ( label src1 src2 cc -- )
-    src1 src2 cc \ (%compare-float-ordered) (%compare-float) :> branch2 :> branch1
+    src1 src2 cc \ (%compare-float-ordered) (%compare-float) :> ( branch1 branch2 )
     label branch1 branch2 (%branch) ;
 
 M:: ppc %compare-float-unordered-branch ( label src1 src2 cc -- )
-    src1 src2 cc \ (%compare-float-unordered) (%compare-float) :> branch2 :> branch1
+    src1 src2 cc \ (%compare-float-unordered) (%compare-float) :> ( branch1 branch2 )
     label branch1 branch2 (%branch) ;
 
 : load-from-frame ( dst n rep -- )
@@ -601,11 +559,11 @@ M:: ppc %compare-float-unordered-branch ( label src1 src2 cc -- )
         { stack-params [ [ [ 0 1 ] dip next-param@ LWZ 0 1 ] dip STW ] }
     } case ;
 
-M: ppc %spill ( src rep n -- )
-    swap [ spill@ ] dip store-to-frame ;
+M: ppc %spill ( src rep dst -- )
+    swap [ n>> spill@ ] dip store-to-frame ;
 
-M: ppc %reload ( dst rep n -- )
-    swap [ spill@ ] dip load-from-frame ;
+M: ppc %reload ( dst rep src -- )
+    swap [ n>> spill@ ] dip load-from-frame ;
 
 M: ppc %loop-entry ;
 
@@ -619,20 +577,19 @@ M:: ppc %save-param-reg ( stack reg rep -- )
 M:: ppc %load-param-reg ( stack reg rep -- )
     reg stack local@ rep load-from-frame ;
 
-M: ppc %prepare-unbox ( -- )
-    ! First parameter is top of stack
-    3 ds-reg 0 LWZ
-    ds-reg dup cell SUBI ;
+M: ppc %prepare-unbox ( n -- )
+    [ 3 ] dip <ds-loc> loc>operand LWZ ;
 
 M: ppc %unbox ( n rep func -- )
     ! Value must be in r3
+    4 %load-vm-addr
     ! Call the unboxer
     f %alien-invoke
     ! Store the return value on the C stack
     over [ [ reg-class-of return-reg ] keep %save-param-reg ] [ 2drop ] if ;
 
 M: ppc %unbox-long-long ( n func -- )
-    ! Value must be in r3:r4
+    4 %load-vm-addr
     ! Call the unboxer
     f %alien-invoke
     ! Store the return value on the C stack
@@ -645,15 +602,17 @@ M: ppc %unbox-large-struct ( n c-type -- )
     ! Value must be in r3
     ! Compute destination address and load struct size
     [ [ 4 1 ] dip local@ ADDI ] [ heap-size 5 LI ] bi*
+    6 %load-vm-addr
     ! Call the function
     "to_value_struct" f %alien-invoke ;
 
-M: ppc %box ( n rep func -- )
+M:: ppc %box ( n rep func -- )
     ! If the source is a stack location, load it into freg #0.
     ! If the source is f, then we assume the value is already in
     ! freg #0.
-    [ over [ 0 over reg-class-of param-reg swap %load-param-reg ] [ 2drop ] if ] dip
-    f %alien-invoke ;
+    n [ 0 rep reg-class-of param-reg rep %load-param-reg ] when*
+    rep double-rep? 5 4 ? %load-vm-addr
+    func f %alien-invoke ;
 
 M: ppc %box-long-long ( n func -- )
     [
@@ -661,6 +620,7 @@ M: ppc %box-long-long ( n func -- )
             [ [ 3 1 ] dip local@ LWZ ]
             [ [ 4 1 ] dip cell + local@ LWZ ] bi
         ] when*
+        5 %load-vm-addr
     ] dip f %alien-invoke ;
 
 : struct-return@ ( n -- n )
@@ -675,6 +635,7 @@ M: ppc %box-large-struct ( n c-type -- )
     ! If n = f, then we're boxing a returned struct
     ! Compute destination address and load struct size
     [ [ 3 1 ] dip struct-return@ ADDI ] [ heap-size 4 LI ] bi*
+    5 %load-vm-addr
     ! Call the function
     "box_value_struct" f %alien-invoke ;
 
@@ -682,7 +643,7 @@ M:: ppc %save-context ( temp1 temp2 callback-allowed? -- )
     #! Save Factor stack pointers in case the C code calls a
     #! callback which does a GC, which must reliably trace
     #! all roots.
-    temp1 "stack_chain" f %alien-global
+    temp1 "stack_chain" %load-vm-field-addr
     temp1 temp1 0 LWZ
     1 temp1 0 STW
     callback-allowed? [
@@ -694,9 +655,12 @@ M: ppc %alien-invoke ( symbol dll -- )
     [ 11 ] 2dip %alien-global 11 MTLR BLRL ;
 
 M: ppc %alien-callback ( quot -- )
-    3 swap %load-reference "c_to_factor" f %alien-invoke ;
+    3 swap %load-reference
+    4 %load-vm-addr
+    "c_to_factor" f %alien-invoke ;
 
 M: ppc %prepare-alien-indirect ( -- )
+    3 %load-vm-addr
     "unbox_alien" f %alien-invoke
     15 3 MR ;
 
@@ -707,6 +671,7 @@ M: ppc %callback-value ( ctype -- )
     ! Save top of data stack
     3 ds-reg 0 LWZ
     3 1 0 local@ STW
+    3 %load-vm-addr
     ! Restore data/call/retain stacks
     "unnest_stacks" f %alien-invoke
     ! Restore top of data stack
@@ -714,7 +679,9 @@ M: ppc %callback-value ( ctype -- )
     ! Unbox former top of data stack to return registers
     unbox-return ;
 
-M: ppc small-enough? ( n -- ? ) -32768 32767 between? ;
+M: ppc immediate-arithmetic? ( n -- ? ) -32768 32767 between? ;
+
+M: ppc immediate-bitwise? ( n -- ? ) 0 65535 between? ;
 
 M: ppc return-struct-in-registers? ( c-type -- ? )
     c-type return-in-registers?>> ;
@@ -722,26 +689,40 @@ M: ppc return-struct-in-registers? ( c-type -- ? )
 M: ppc %box-small-struct ( c-type -- )
     #! Box a <= 16-byte struct returned in r3:r4:r5:r6
     heap-size 7 LI
+    8 %load-vm-addr
     "box_medium_struct" f %alien-invoke ;
 
 : %unbox-struct-1 ( -- )
     ! Alien must be in r3.
+    4 %load-vm-addr
     "alien_offset" f %alien-invoke
     3 3 0 LWZ ;
 
 : %unbox-struct-2 ( -- )
     ! Alien must be in r3.
+    4 %load-vm-addr
     "alien_offset" f %alien-invoke
     4 3 4 LWZ
     3 3 0 LWZ ;
 
 : %unbox-struct-4 ( -- )
     ! Alien must be in r3.
+    4 %load-vm-addr
     "alien_offset" f %alien-invoke
     6 3 12 LWZ
     5 3 8 LWZ
     4 3 4 LWZ
     3 3 0 LWZ ;
+
+M: ppc %nest-stacks ( -- )
+    ! Save current frame. See comment in vm/contexts.hpp
+    3 1 stack-frame get total-size>> 2 cells - ADDI
+    4 %load-vm-addr
+    "nest_stacks" f %alien-invoke ;
+
+M: ppc %unnest-stacks ( -- )
+    3 %load-vm-addr
+    "unnest_stacks" f %alien-invoke ;
 
 M: ppc %unbox-small-struct ( size -- )
     #! Alien must be in EAX.
@@ -770,5 +751,5 @@ USE: vocabs.loader
         4 >>align
         "box_boolean" >>boxer
         "to_boolean" >>unboxer
-    "bool" define-primitive-type
+    bool define-primitive-type
 ] with-compilation-unit

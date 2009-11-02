@@ -1,26 +1,21 @@
 #include "master.hpp"
 
-factor::context *stack_chain;
-
 namespace factor
 {
 
-cell ds_size, rs_size;
-context *unused_contexts;
-
-void reset_datastack()
+void factor_vm::reset_datastack()
 {
 	ds = ds_bot - sizeof(cell);
 }
 
-void reset_retainstack()
+void factor_vm::reset_retainstack()
 {
 	rs = rs_bot - sizeof(cell);
 }
 
 static const cell stack_reserved = (64 * sizeof(cell));
 
-void fix_stacks()
+void factor_vm::fix_stacks()
 {
 	if(ds + sizeof(cell) < ds_bot || ds + stack_reserved >= ds_top) reset_datastack();
 	if(rs + sizeof(cell) < rs_bot || rs + stack_reserved >= rs_top) reset_retainstack();
@@ -28,16 +23,16 @@ void fix_stacks()
 
 /* called before entry into foreign C code. Note that ds and rs might
 be stored in registers, so callbacks must save and restore the correct values */
-void save_stacks()
+void factor_vm::save_stacks()
 {
-	if(stack_chain)
+	if(ctx)
 	{
-		stack_chain->datastack = ds;
-		stack_chain->retainstack = rs;
+		ctx->datastack = ds;
+		ctx->retainstack = rs;
 	}
 }
 
-context *alloc_context()
+context *factor_vm::alloc_context()
 {
 	context *new_context;
 
@@ -48,27 +43,27 @@ context *alloc_context()
 	}
 	else
 	{
-		new_context = (context *)safe_malloc(sizeof(context));
-		new_context->datastack_region = alloc_segment(ds_size);
-		new_context->retainstack_region = alloc_segment(rs_size);
+		new_context = new context;
+		new_context->datastack_region = new segment(ds_size,false);
+		new_context->retainstack_region = new segment(rs_size,false);
 	}
 
 	return new_context;
 }
 
-void dealloc_context(context *old_context)
+void factor_vm::dealloc_context(context *old_context)
 {
 	old_context->next = unused_contexts;
 	unused_contexts = old_context;
 }
 
 /* called on entry into a compiled callback */
-void nest_stacks()
+void factor_vm::nest_stacks(stack_frame *magic_frame)
 {
-	context *new_context = alloc_context();
+	context *new_ctx = alloc_context();
 
-	new_context->callstack_bottom = (stack_frame *)-1;
-	new_context->callstack_top = (stack_frame *)-1;
+	new_ctx->callstack_bottom = (stack_frame *)-1;
+	new_ctx->callstack_top = (stack_frame *)-1;
 
 	/* note that these register values are not necessarily valid stack
 	pointers. they are merely saved non-volatile registers, and are
@@ -80,45 +75,57 @@ void nest_stacks()
 	- Factor callback returns
 	- C function restores registers
 	- C function returns to Factor code */
-	new_context->datastack_save = ds;
-	new_context->retainstack_save = rs;
+	new_ctx->datastack_save = ds;
+	new_ctx->retainstack_save = rs;
+
+	new_ctx->magic_frame = magic_frame;
 
 	/* save per-callback userenv */
-	new_context->current_callback_save = userenv[CURRENT_CALLBACK_ENV];
-	new_context->catchstack_save = userenv[CATCHSTACK_ENV];
+	new_ctx->current_callback_save = userenv[CURRENT_CALLBACK_ENV];
+	new_ctx->catchstack_save = userenv[CATCHSTACK_ENV];
 
-	new_context->next = stack_chain;
-	stack_chain = new_context;
+	new_ctx->next = ctx;
+	ctx = new_ctx;
 
 	reset_datastack();
 	reset_retainstack();
 }
 
-/* called when leaving a compiled callback */
-void unnest_stacks()
+void nest_stacks(stack_frame *magic_frame, factor_vm *parent)
 {
-	ds = stack_chain->datastack_save;
-	rs = stack_chain->retainstack_save;
+	return parent->nest_stacks(magic_frame);
+}
+
+/* called when leaving a compiled callback */
+void factor_vm::unnest_stacks()
+{
+	ds = ctx->datastack_save;
+	rs = ctx->retainstack_save;
 
 	/* restore per-callback userenv */
-	userenv[CURRENT_CALLBACK_ENV] = stack_chain->current_callback_save;
-	userenv[CATCHSTACK_ENV] = stack_chain->catchstack_save;
+	userenv[CURRENT_CALLBACK_ENV] = ctx->current_callback_save;
+	userenv[CATCHSTACK_ENV] = ctx->catchstack_save;
 
-	context *old_stacks = stack_chain;
-	stack_chain = old_stacks->next;
-	dealloc_context(old_stacks);
+	context *old_ctx = ctx;
+	ctx = old_ctx->next;
+	dealloc_context(old_ctx);
+}
+
+void unnest_stacks(factor_vm *parent)
+{
+	return parent->unnest_stacks();
 }
 
 /* called on startup */
-void init_stacks(cell ds_size_, cell rs_size_)
+void factor_vm::init_stacks(cell ds_size_, cell rs_size_)
 {
 	ds_size = ds_size_;
 	rs_size = rs_size_;
-	stack_chain = NULL;
+	ctx = NULL;
 	unused_contexts = NULL;
 }
 
-bool stack_to_array(cell bottom, cell top)
+bool factor_vm::stack_to_array(cell bottom, cell top)
 {
 	fixnum depth = (fixnum)(top - bottom + sizeof(cell));
 
@@ -133,38 +140,38 @@ bool stack_to_array(cell bottom, cell top)
 	}
 }
 
-PRIMITIVE(datastack)
+void factor_vm::primitive_datastack()
 {
 	if(!stack_to_array(ds_bot,ds))
-		general_error(ERROR_DS_UNDERFLOW,F,F,NULL);
+		general_error(ERROR_DS_UNDERFLOW,false_object,false_object,NULL);
 }
 
-PRIMITIVE(retainstack)
+void factor_vm::primitive_retainstack()
 {
 	if(!stack_to_array(rs_bot,rs))
-		general_error(ERROR_RS_UNDERFLOW,F,F,NULL);
+		general_error(ERROR_RS_UNDERFLOW,false_object,false_object,NULL);
 }
 
 /* returns pointer to top of stack */
-cell array_to_stack(array *array, cell bottom)
+cell factor_vm::array_to_stack(array *array, cell bottom)
 {
 	cell depth = array_capacity(array) * sizeof(cell);
 	memcpy((void*)bottom,array + 1,depth);
 	return bottom + depth - sizeof(cell);
 }
 
-PRIMITIVE(set_datastack)
+void factor_vm::primitive_set_datastack()
 {
 	ds = array_to_stack(untag_check<array>(dpop()),ds_bot);
 }
 
-PRIMITIVE(set_retainstack)
+void factor_vm::primitive_set_retainstack()
 {
 	rs = array_to_stack(untag_check<array>(dpop()),rs_bot);
 }
 
 /* Used to implement call( */
-PRIMITIVE(check_datastack)
+void factor_vm::primitive_check_datastack()
 {
 	fixnum out = to_fixnum(dpop());
 	fixnum in = to_fixnum(dpop());
@@ -173,7 +180,7 @@ PRIMITIVE(check_datastack)
 	fixnum saved_height = array_capacity(saved_datastack);
 	fixnum current_height = (ds - ds_bot + sizeof(cell)) / sizeof(cell);
 	if(current_height - height != saved_height)
-		dpush(F);
+		dpush(false_object);
 	else
 	{
 		fixnum i;
@@ -181,11 +188,11 @@ PRIMITIVE(check_datastack)
 		{
 			if(((cell *)ds_bot)[i] != array_nth(saved_datastack,i))
 			{
-				dpush(F);
+				dpush(false_object);
 				return;
 			}
 		}
-		dpush(T);
+		dpush(true_object);
 	}
 }
 

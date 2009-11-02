@@ -79,7 +79,7 @@ HELP: alien-callback-error
 HELP: alien-callback
 { $values { "return" "a C return type" } { "parameters" "a sequence of C parameter types" } { "abi" "one of " { $snippet "\"cdecl\"" } " or " { $snippet "\"stdcall\"" } } { "quot" "a quotation" } { "alien" alien } }
 { $description
-    "Defines a callback from C to Factor which accepts the given set of parameters from the C caller, pushes them on the data stack, calls the quotation, and passes a return value back to the C caller. A return type of " { $snippet "\"void\"" } " indicates that no value is to be returned."
+    "Defines a callback from C to Factor which accepts the given set of parameters from the C caller, pushes them on the data stack, calls the quotation, and passes a return value back to the C caller. A return type of " { $snippet "void" } " indicates that no value is to be returned."
     $nl
     "When a compiled reference to this word is called, it pushes the callback's alien address on the data stack. This address can be passed to any C function expecting a C function pointer with the correct signature. The callback is actually generated when the word calling " { $link alien-callback } " is compiled."
     $nl
@@ -90,7 +90,7 @@ HELP: alien-callback
     "A simple example, showing a C function which returns the difference of two given integers:"
     { $code
         ": difference-callback ( -- alien )"
-        "    \"int\" { \"int\" \"int\" } \"cdecl\" [ - ] alien-callback ;"
+        "    int { int int } \"cdecl\" [ - ] alien-callback ;"
     }
 }
 { $errors "Throws an " { $link alien-callback-error } " if the word calling " { $link alien-callback } " is not compiled." } ;
@@ -101,58 +101,68 @@ ARTICLE: "alien-expiry" "Alien expiry"
 "When an image is loaded, any alien objects which persisted from the previous session are marked as having expired. This is because the C pointers they contain are almost certainly no longer valid."
 $nl
 "For this reason, the " { $link POSTPONE: ALIEN: } " word should not be used in source files, since loading the source file then saving the image will result in the literal becoming expired. Use " { $link <alien> } " instead, and ensure the word calling " { $link <alien> } " is not declared " { $link POSTPONE: flushable } "."
-{ $subsection expired? } ;
+{ $subsections expired? } ;
 
 ARTICLE: "aliens" "Alien addresses"
 "Instances of the " { $link alien } " class represent pointers to C data outside the Factor heap:"
-{ $subsection <alien> }
-{ $subsection <displaced-alien> }
-{ $subsection alien-address }
+{ $subsections
+    <alien>
+    <displaced-alien>
+    alien-address
+}
 "Anywhere that a " { $link alien } " instance is accepted, the " { $link f } " singleton may be passed in to denote a null pointer."
 $nl
 "Usually alien objects do not have to created and dereferenced directly; instead declaring C function parameters and return values as having a pointer type such as " { $snippet "void*" } " takes care of the details."
-{ $subsection "syntax-aliens" }
-{ $subsection "alien-expiry" }
+{ $subsections
+    "syntax-aliens"
+    "alien-expiry"
+}
 "When higher-level abstractions won't do:"
-{ $subsection "reading-writing-memory" }
+{ $subsections "reading-writing-memory" }
 { $see-also "c-data" "c-types-specs" } ;
 
 ARTICLE: "reading-writing-memory" "Reading and writing memory directly"
 "Numerical values can be read from memory addresses and converted to Factor objects using the various typed memory accessor words:"
-{ $subsection alien-signed-1 }
-{ $subsection alien-unsigned-1 }
-{ $subsection alien-signed-2 }
-{ $subsection alien-unsigned-2 }
-{ $subsection alien-signed-4 }
-{ $subsection alien-unsigned-4 }
-{ $subsection alien-signed-cell }
-{ $subsection alien-unsigned-cell }
-{ $subsection alien-signed-8 }
-{ $subsection alien-unsigned-8 }
-{ $subsection alien-float }
-{ $subsection alien-double }
+{ $subsections
+    alien-signed-1
+    alien-unsigned-1
+    alien-signed-2
+    alien-unsigned-2
+    alien-signed-4
+    alien-unsigned-4
+    alien-signed-cell
+    alien-unsigned-cell
+    alien-signed-8
+    alien-unsigned-8
+    alien-float
+    alien-double
+}
 "Factor numbers can also be converted to C values and stored to memory:"
-{ $subsection set-alien-signed-1 }
-{ $subsection set-alien-unsigned-1 }
-{ $subsection set-alien-signed-2 }
-{ $subsection set-alien-unsigned-2 }
-{ $subsection set-alien-signed-4 }
-{ $subsection set-alien-unsigned-4 }
-{ $subsection set-alien-signed-cell }
-{ $subsection set-alien-unsigned-cell }
-{ $subsection set-alien-signed-8 }
-{ $subsection set-alien-unsigned-8 }
-{ $subsection set-alien-float }
-{ $subsection set-alien-double } ;
+{ $subsections
+    set-alien-signed-1
+    set-alien-unsigned-1
+    set-alien-signed-2
+    set-alien-unsigned-2
+    set-alien-signed-4
+    set-alien-unsigned-4
+    set-alien-signed-cell
+    set-alien-unsigned-cell
+    set-alien-signed-8
+    set-alien-unsigned-8
+    set-alien-float
+    set-alien-double
+} ;
 
 ARTICLE: "alien-invoke" "Calling C from Factor"
 "The easiest way to call into a C library is to define bindings using a pair of parsing words:"
-{ $subsection POSTPONE: LIBRARY: }
-{ $subsection POSTPONE: FUNCTION: }
+{ $subsections
+    POSTPONE: LIBRARY:
+    POSTPONE: FUNCTION:
+}
 "The above parsing words create word definitions which call a lower-level word; you can use it directly, too:"
-{ $subsection alien-invoke }
+{ $subsections alien-invoke }
 "Sometimes it is necessary to invoke a C function pointer, rather than a named C function:"
-{ $subsection alien-indirect }
+{ $subsections alien-indirect }
 "There are some details concerning the conversion of Factor objects to C values, and vice versa. See " { $link "c-data" } "." ;
 
 HELP: alien-invoke-error
@@ -165,28 +175,32 @@ HELP: alien-invoke-error
     }
 } ;
 
-ARTICLE: "alien-callback-gc" "Callbacks and code GC"
-"A callback consits of two parts; the callback word, which pushes the address of the callback on the stack when executed, and the callback body itself. If the callback word is redefined, removed from the dictionary using " { $link forget } ", or recompiled, the callback body will not be reclaimed by the garbage collector, since potentially C code may be holding a reference to the callback body."
-$nl
-"This is the safest approach, however it can lead to code heap leaks when repeatedly reloading code which defines callbacks. If you are " { $emphasis "completely sure" } " that no running C code is holding a reference to any callbacks, you can blow them all away:"
-{ $code "USE: alien callbacks get clear-hash gc" }
-"This will reclaim all callback bodies which are otherwise unreachable from the dictionary (that is, their associated callback words have since been redefined, recompiled or forgotten)." ;
-
 ARTICLE: "alien-callback" "Calling Factor from C"
 "Callbacks can be defined and passed to C code as function pointers; the C code can then invoke the callback and run Factor code:"
-{ $subsection alien-callback }
+{ $subsections
+    alien-callback
+    POSTPONE: CALLBACK:
+}
 "There are some caveats concerning the conversion of Factor objects to C values, and vice versa. See " { $link "c-data" } "."
-{ $subsection "alien-callback-gc" }
 { $see-also "byte-arrays-gc" } ;
+
+ARTICLE: "alien-globals" "Accessing C global variables"
+"The " { $vocab-link "alien.syntax" } " vocabulary defines two parsing words for accessing the value of a global variable, and get the address of a global variable, respectively."
+{ $subsections
+    POSTPONE: C-GLOBAL:
+    POSTPONE: &:
+} ;
 
 ARTICLE: "dll.private" "DLL handles"
 "DLL handles are a built-in class of objects which represent loaded native libraries. DLL handles are instances of the " { $link dll } " class, and have a literal syntax used for debugging prinouts; see " { $link "syntax-aliens" } "."
 $nl
 "Usually one never has to deal with DLL handles directly; the C library interface creates them as required. However if direct access to these operating system facilities is required, the following primitives can be used:"
-{ $subsection dlopen }
-{ $subsection dlsym }
-{ $subsection dlclose }
-{ $subsection dll-valid? } ;
+{ $subsections
+    dlopen
+    dlsym
+    dlclose
+    dll-valid?
+} ;
 
 ARTICLE: "embedding-api" "Factor embedding API"
 "The Factor embedding API is defined in " { $snippet "vm/master.h" } "."
@@ -234,7 +248,7 @@ $nl
 "One exception is that the global " { $link input-stream } " and " { $link output-stream } " streams are not bound by default, to avoid conflicting with any I/O the host process might perform. The " { $link init-stdio } " words must be called explicitly to initialize terminal streams."
 $nl
 "There is a word which can detect when Factor is embedded:"
-{ $subsection embedded? }
+{ $subsections embedded? }
 "No special support is provided for calling out from Factor into the owner process. The C library inteface works fine for this task - see " { $link "alien" } "." ;
 
 ARTICLE: "embedding" "Embedding Factor into C applications"
@@ -247,23 +261,28 @@ ARTICLE: "embedding" "Embedding Factor into C applications"
     { "Other Unix" { $snippet "libfactor.a" } "No" }
 }
 "An image file must be supplied; a minimal image can be built, however the compiler must be included for the embedding API to work (see " { $link "bootstrap-cli-args" } ")."
-{ $subsection "embedding-api" }
-{ $subsection "embedding-factor" }
-{ $subsection "embedding-restrictions" } ;
+{ $subsections
+    "embedding-api"
+    "embedding-factor"
+    "embedding-restrictions"
+} ;
 
 ARTICLE: "alien" "C library interface"
 "Factor can directly call C functions in native libraries. It is also possible to compile callbacks which run Factor code, and pass them to native libraries as function pointers."
 $nl
 "The C library interface is entirely self-contained; there is no C code which one must write in order to wrap a library."
 $nl
-"C library interface words are found in the " { $vocab-link "alien" } " vocabulary."
+"C library interface words are found in the " { $vocab-link "alien" } " vocabulary and its subvocabularies."
 { $warning "C does not perform runtime type checking, automatic memory management or array bounds checks. Incorrect usage of C library functions can lead to crashes, data corruption, and security exploits." }
-{ $subsection "loading-libs" }
-{ $subsection "aliens" }
-{ $subsection "alien-invoke" }
-{ $subsection "alien-callback" }
-{ $subsection "c-data" }
-{ $subsection "dll.private" }
-{ $subsection "embedding" } ;
+{ $subsections
+    "loading-libs"
+    "alien-invoke"
+    "alien-callback"
+    "c-data"
+    "classes.struct"
+    "alien-globals"
+    "dll.private"
+    "embedding"
+} ;
 
 ABOUT: "alien"

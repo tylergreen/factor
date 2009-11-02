@@ -1,8 +1,8 @@
 ! Copyright (C) 2008 Slava Pestov
 ! See http://factorcode.org/license.txt for BSD license.
-USING: accessors alien alien.syntax kernel math namespaces
-sequences destructors combinators threads heaps deques calendar
-core-foundation core-foundation.strings
+USING: accessors alien alien.c-types alien.syntax kernel math
+namespaces sequences destructors combinators threads heaps
+deques calendar core-foundation core-foundation.strings
 core-foundation.file-descriptors core-foundation.timers
 core-foundation.time ;
 IN: core-foundation.run-loop
@@ -115,7 +115,7 @@ PRIVATE>
     [ fds>> [ enable-all-callbacks ] each ] bi ;
 
 : timer-callback ( -- callback )
-    "void" { "CFRunLoopTimerRef" "void*" } "cdecl"
+    void { CFRunLoopTimerRef void* } "cdecl"
     [ 2drop reset-run-loop yield ] alien-callback ;
 
 : init-thread-timer ( -- )

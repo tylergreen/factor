@@ -3,8 +3,8 @@
 USING: alien alien.c-types alien.strings alien.syntax
 classes.struct combinators io.encodings.utf16n io.files
 io.pathnames kernel windows.errors windows.com
-windows.com.syntax windows.user32 windows.ole32 windows
-specialized-arrays ;
+windows.com.syntax windows.types windows.user32
+windows.ole32 windows specialized-arrays ;
 SPECIALIZED-ARRAY: ushort
 IN: windows.shell32
 
@@ -88,7 +88,7 @@ FUNCTION: HINSTANCE ShellExecuteW ( HWND hwnd, LPCTSTR lpOperation, LPCTSTR lpFi
 ALIAS: ShellExecute ShellExecuteW
 
 : open-in-explorer ( dir -- )
-    [ f "open" ] dip (normalize-path) f f SW_SHOWNORMAL ShellExecute drop ;
+    [ f "open" ] dip absolute-path f f SW_SHOWNORMAL ShellExecute drop ;
 
 : shell32-directory ( n -- str )
     f swap f SHGFP_TYPE_DEFAULT

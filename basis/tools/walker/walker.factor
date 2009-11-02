@@ -5,7 +5,7 @@ sequences math namespaces.private continuations.private
 concurrency.messaging quotations kernel.private words
 sequences.private assocs models models.arrow arrays accessors
 generic generic.standard definitions make sbufs
-tools.continuations parser ;
+tools.continuations parser tools.annotations fry ;
 IN: tools.walker
 
 SYMBOL: show-walker-hook ! ( status continuation thread -- )
@@ -158,7 +158,13 @@ SYMBOL: +stopped+
     "Walker on " self name>> append spawn
     [ associate-thread ] keep ;
 
+: breakpoint ( word -- )
+    [ add-breakpoint ] annotate ;
+
+: breakpoint-if ( word quot -- )
+    '[ [ _ [ [ break ] when ] ] dip 3append ] annotate ;
+
 ! For convenience
 IN: syntax
 
-SYNTAX: B \ break parsed ;
+SYNTAX: B \ break suffix! ;

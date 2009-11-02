@@ -54,6 +54,13 @@ HELP: with-unique-directory
 }
 { $description "Creates a directory with " { $link unique-directory } " and calls the quotation with the pathname on the stack using the " { $link with-temporary-directory } " combinator. The quotation can access the " { $link current-temporary-directory } " symbol for the name of the temporary directory. Subsequent unique files will be created in this unique directory until the combinator returns." } ;
 
+HELP: move-file-unique
+{ $values
+    { "path" "a pathname string" } { "directory" "a directory" }
+    { "path'" "a pathname string" }
+}
+{ $description "Moves " { $snippet "path" } " to " { $snippet "directory" } " by creating a unique file in this directory. Returns the new path." } ;
+
 HELP: current-temporary-directory
 { $values
      { "value" "a path" }
@@ -76,16 +83,22 @@ HELP: with-temporary-directory
 ARTICLE: "io.files.unique" "Unique files"
 "The " { $vocab-link "io.files.unique" } " vocabulary implements cross-platform unique file creation in temporary directories in a high-level and secure way." $nl
 "Changing the temporary path:"
-{ $subsection current-temporary-directory }
+{ $subsections current-temporary-directory }
 "Creating unique files:"
-{ $subsection unique-file }
-{ $subsection cleanup-unique-file }
-{ $subsection make-unique-file }
+{ $subsections
+    unique-file
+    cleanup-unique-file
+    make-unique-file
+}
 "Creating unique directories:"
-{ $subsection unique-directory }
-{ $subsection with-unique-directory }
-{ $subsection cleanup-unique-directory }
+{ $subsections
+    unique-directory
+    with-unique-directory
+    cleanup-unique-directory
+}
 "Default temporary directory:"
-{ $subsection default-temporary-directory } ;
+{ $subsections default-temporary-directory }
+"Moving files into a directory safely:"
+{ $subsections move-file-unique } ;
 
 ABOUT: "io.files.unique"

@@ -1,9 +1,9 @@
 ! Copyright (C) 2007, 2009 Slava Pestov.
 ! See http://factorcode.org/license.txt for BSD license.
-USING: bootstrap.image.private kernel kernel.private namespaces system
-layouts compiler.units math math.private compiler.constants vocabs
-slots.private words locals.backend make sequences combinators arrays
- cpu.x86.assembler cpu.x86.assembler.operands ;
+USING: bootstrap.image.private compiler.constants
+compiler.units cpu.x86.assembler cpu.x86.assembler.operands
+kernel kernel.private layouts locals.backend make math
+math.private namespaces sequences slots.private vocabs ;
 IN: bootstrap.x86
 
 big-endian off
@@ -243,16 +243,23 @@ big-endian off
     ! fall-through on miss
 ] mega-lookup jit-define
 
+[
+    safe-reg 0 MOV rc-absolute-cell rt-xt jit-rel
+    safe-reg JMP
+] callback-stub jit-define
+
 ! ! ! Sub-primitives
 
 ! Quotations and words
 [
     ! load from stack
-    arg ds-reg [] MOV
+    arg1 ds-reg [] MOV
     ! pop stack
     ds-reg bootstrap-cell SUB
+    ! pass vm pointer
+    arg2 0 MOV 0 jit-literal rc-absolute-cell rt-vm jit-rel
     ! call quotation
-    arg quot-xt-offset [+] JMP
+    arg1 quot-xt-offset [+] JMP
 ] \ (call) define-sub-primitive
 
 ! Objects
@@ -400,6 +407,7 @@ big-endian off
 ! Comparisons
 : jit-compare ( insn -- )
     ! load t
+    t jit-literal
     temp3 0 MOV rc-absolute-cell rt-immediate jit-rel
     ! load f
     temp1 \ f tag-number MOV

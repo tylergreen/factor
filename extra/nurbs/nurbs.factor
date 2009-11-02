@@ -1,7 +1,8 @@
 ! (c)2009 Joe Groff bsd license
-USING: accessors arrays grouping kernel locals math math.order
-math.ranges math.vectors math.vectors.homogeneous sequences
-specialized-arrays ;
+USING: accessors alien.c-types arrays grouping kernel locals
+math math.order math.ranges math.vectors
+math.vectors.homogeneous sequences specialized-arrays ;
+FROM: alien.c-types => float ;
 SPECIALIZED-ARRAY: float
 IN: nurbs
 
@@ -59,7 +60,7 @@ TUPLE: nurbs-curve
 
 :: (eval-bases) ( curve t interval values order -- values' )
     order 2 - curve (knot-constants)>> nth :> all-knot-constants
-    interval order interval + all-knot-constants clip-range :> to :> from
+    interval order interval + all-knot-constants clip-range :> ( from to )
     from to all-knot-constants subseq :> knot-constants
     values { 0.0 } { 0.0 } surround 2 <clumps> :> bases
 

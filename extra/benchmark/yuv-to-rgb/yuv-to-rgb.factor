@@ -2,7 +2,7 @@
 ! See http://factorcode.org/license.txt for BSD license.
 USING: alien.accessors alien.c-types alien.syntax byte-arrays
 destructors generalizations hints kernel libc locals math math.order
-sequences sequences.private classes.struct accessors ;
+sequences sequences.private classes.struct accessors alien.data ;
 IN: benchmark.yuv-to-rgb
 
 STRUCT: yuv_buffer
@@ -17,20 +17,19 @@ STRUCT: yuv_buffer
     { v void* } ;
 
 :: fake-data ( -- rgb yuv )
-    [let* | w [ 1600 ]
-            h [ 1200 ]
-            buffer [ yuv_buffer <struct> ]
-            rgb [ w h * 3 * <byte-array> ] |
-        rgb buffer
-            w >>y_width
-            h >>y_height
-            h >>uv_height
-            w >>y_stride
-            w >>uv_stride
-            w h * [ dup * ] B{ } map-as malloc-byte-array &free >>y
-            w h * 2/ [ dup dup * * ] B{ } map-as malloc-byte-array &free >>u
-            w h * 2/ [ dup * dup * ] B{ } map-as malloc-byte-array &free >>v
-    ] ;
+    1600 :> w
+    1200 :> h
+    yuv_buffer <struct> :> buffer
+    w h * 3 * <byte-array> :> rgb
+    rgb buffer
+        w >>y_width
+        h >>y_height
+        h >>uv_height
+        w >>y_stride
+        w >>uv_stride
+        w h * [ dup * ] B{ } map-as malloc-byte-array &free >>y
+        w h * 2/ [ dup dup * * ] B{ } map-as malloc-byte-array &free >>u
+        w h * 2/ [ dup * dup * ] B{ } map-as malloc-byte-array &free >>v ;
 
 : clamp ( n -- n )
     255 min 0 max ; inline

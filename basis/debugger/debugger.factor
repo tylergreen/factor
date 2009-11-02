@@ -8,18 +8,21 @@ continuations.private combinators generic.math classes.builtin classes
 compiler.units generic.standard generic.single vocabs init
 kernel.private io.encodings accessors math.order destructors
 source-files parser classes.tuple.parser effects.parser lexer
-generic.parser strings.parser vocabs.loader vocabs.parser see
+generic.parser strings.parser vocabs.loader vocabs.parser
 source-files.errors ;
 IN: debugger
 
-GENERIC: error. ( error -- )
 GENERIC: error-help ( error -- topic )
-
-M: object error. . ;
 
 M: object error-help drop f ;
 
 M: tuple error-help class ;
+
+M: source-file-error error-help error>> error-help ;
+
+GENERIC: error. ( error -- )
+
+M: object error. short. ;
 
 M: string error. print ;
 
@@ -174,6 +177,8 @@ M: no-method error.
 
 M: bad-slot-value summary drop "Bad store to specialized slot" ;
 
+M: bad-slot-name summary drop "Bad slot name in object literal" ;
+
 M: no-math-method summary
     drop "No suitable arithmetic method" ;
 
@@ -317,7 +322,9 @@ M: lexer-error error-help
 M: bad-effect summary
     drop "Bad stack effect declaration" ;
 
-M: bad-escape summary drop "Bad escape code" ;
+M: bad-escape error.
+    "Bad escape code: \\" write
+    char>> 1string print ;
 
 M: bad-literal-tuple summary drop "Bad literal tuple" ;
 

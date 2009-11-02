@@ -17,7 +17,7 @@ struct image_header {
 	/* size of code heap */
 	cell code_size;
 	/* tagged pointer to t singleton */
-	cell t;
+	cell true_object;
 	/* tagged pointer to bignum 0 */
 	cell bignum_zero;
 	/* tagged pointer to bignum 1 */
@@ -32,19 +32,14 @@ struct vm_parameters {
 	const vm_char *image_path;
 	const vm_char *executable_path;
 	cell ds_size, rs_size;
-	cell gen_count, young_size, aging_size, tenured_size;
+	cell young_size, aging_size, tenured_size;
 	cell code_size;
 	bool secure_gc;
 	bool fep;
 	bool console;
-	bool stack_traces;
+	bool signals;
 	cell max_pic_size;
+	cell callback_size;
 };
-
-void load_image(vm_parameters *p);
-bool save_image(const vm_char *file);
-
-PRIMITIVE(save_image);
-PRIMITIVE(save_image_and_exit);
 
 }

@@ -150,11 +150,11 @@ M: interactor stream-readln
     ] if ;
 
 M: interactor stream-read
-    swap dup zero? [
-        2drop ""
+    swap [
+        drop ""
     ] [
         [ interactor-read dup [ "\n" join ] when ] dip short head
-    ] if ;
+    ] if-zero ;
 
 M: interactor stream-read-partial
     stream-read ;
@@ -379,13 +379,19 @@ interactor "completion" f {
     { T{ key-down f { C+ } "r" } history-completion-popup }
 } define-command-map
 
+: introduction. ( -- )
+    tip-of-the-day. nl
+    { $strong "Press " { $snippet "F1" } " at any time for help." } print-content nl nl ;
+
 : listener-thread ( listener -- )
     dup listener-streams [
         [ com-browse ] help-hook set
         '[ [ _ input>> ] 2dip debugger-popup ] error-hook set
         error-summary? off
-        tip-of-the-day. nl
+        introduction.
         listener
+        nl
+        "The listener has exited. To start it again, click “Restart Listener”." print
     ] with-streams* ;
 
 : start-listener-thread ( listener -- )
@@ -406,18 +412,14 @@ interactor "completion" f {
         [ wait-for-listener ]
     } cleave ;
 
-: listener-help ( -- ) "help.home" com-browse ;
+: com-help ( -- ) "help.home" com-browse ;
 
-\ listener-help H{ { +nullary+ t } } define-command
+\ com-help H{ { +nullary+ t } } define-command
 
 : com-auto-use ( -- )
     auto-use? [ not ] change ;
 
 \ com-auto-use H{ { +nullary+ t } { +listener+ t } } define-command
-
-listener-gadget "misc" "Miscellaneous commands" {
-    { T{ key-down f f "F1" } listener-help }
-} define-command-map
 
 listener-gadget "toolbar" f {
     { f restart-listener }
@@ -425,6 +427,7 @@ listener-gadget "toolbar" f {
     { T{ key-down f { A+ } "k" } clear-output }
     { T{ key-down f { A+ } "K" } clear-stack }
     { T{ key-down f { C+ } "d" } com-end }
+    { T{ key-down f f "F1" } com-help }
 } define-command-map
 
 listener-gadget "scrolling"

@@ -28,12 +28,12 @@ http://www.wodeveloper.com/omniLists/macosx-dev/2000/June/msg00137.html */
 /* Modify a suspended thread's thread_state so that when the thread resumes
 executing, the call frame of the current C primitive (if any) is rewound, and
 the appropriate Factor error is thrown from the top-most Factor frame. */
-static void call_fault_handler(
-    exception_type_t exception,
-    exception_data_type_t code,
+void factor_vm::call_fault_handler(
+	exception_type_t exception,
+	exception_data_type_t code,
 	MACH_EXC_STATE_TYPE *exc_state,
 	MACH_THREAD_STATE_TYPE *thread_state,
-        MACH_FLOAT_STATE_TYPE *float_state)
+	MACH_FLOAT_STATE_TYPE *float_state)
 {
 	/* There is a race condition here, but in practice an exception
 	delivered during stack frame setup/teardown or while transitioning
@@ -47,29 +47,50 @@ static void call_fault_handler(
 	else
 		signal_callstack_top = NULL;
 
-	MACH_STACK_POINTER(thread_state) = fix_stack_pointer(MACH_STACK_POINTER(thread_state));
+	MACH_STACK_POINTER(thread_state) = align_stack_pointer(MACH_STACK_POINTER(thread_state));
 
 	/* Now we point the program counter at the right handler function. */
 	if(exception == EXC_BAD_ACCESS)
 	{
 		signal_fault_addr = MACH_EXC_STATE_FAULT(exc_state);
-		MACH_PROGRAM_COUNTER(thread_state) = (cell)memory_signal_handler_impl;
+		MACH_PROGRAM_COUNTER(thread_state) = (cell)factor::memory_signal_handler_impl;
 	}
 	else if(exception == EXC_ARITHMETIC && code != MACH_EXC_INTEGER_DIV)
 	{
-                signal_fpu_status = fpu_status(mach_fpu_status(float_state));
-                mach_clear_fpu_status(float_state);
-		MACH_PROGRAM_COUNTER(thread_state) = (cell)fp_signal_handler_impl;
+		signal_fpu_status = fpu_status(mach_fpu_status(float_state));
+		mach_clear_fpu_status(float_state);
+		MACH_PROGRAM_COUNTER(thread_state) = (cell)factor::fp_signal_handler_impl;
 	}
 	else
 	{
-		signal_number = (exception == EXC_ARITHMETIC ? SIGFPE : SIGABRT);
-		MACH_PROGRAM_COUNTER(thread_state) = (cell)misc_signal_handler_impl;
+		switch(exception)
+		{
+		case EXC_ARITHMETIC: signal_number = SIGFPE; break;
+		case EXC_BAD_INSTRUCTION: signal_number = SIGILL; break;
+		default: signal_number = SIGABRT; break;
+		}
+
+		MACH_PROGRAM_COUNTER(thread_state) = (cell)factor::misc_signal_handler_impl;
 	}
 }
 
+static void call_fault_handler(
+	mach_port_t thread,
+	exception_type_t exception,
+	exception_data_type_t code,
+	MACH_EXC_STATE_TYPE *exc_state,
+	MACH_THREAD_STATE_TYPE *thread_state,
+	MACH_FLOAT_STATE_TYPE *float_state)
+{
+	THREADHANDLE thread_id = pthread_from_mach_thread_np(thread);
+	assert(thread_id);
+	unordered_map<THREADHANDLE, factor_vm*>::const_iterator vm = thread_vms.find(thread_id);
+	if (vm != thread_vms.end())
+	    vm->second->call_fault_handler(exception,code,exc_state,thread_state,float_state);
+}
+
 /* Handle an exception by invoking the user's fault handler and/or forwarding
-the duty to the previously installed handlers.  */
+the duty to the previously installed handlers.	*/
 extern "C"
 kern_return_t
 catch_exception_raise (mach_port_t exception_port,
@@ -86,7 +107,7 @@ catch_exception_raise (mach_port_t exception_port,
 
 	/* Get fault information and the faulting thread's register contents..
 	
-	See http://web.mit.edu/darwin/src/modules/xnu/osfmk/man/thread_get_state.html.  */
+	See http://web.mit.edu/darwin/src/modules/xnu/osfmk/man/thread_get_state.html.	*/
 	exc_state_count = MACH_EXC_STATE_COUNT;
 	if (thread_get_state (thread, MACH_EXC_STATE_FLAVOR,
 			      (natural_t *)&exc_state, &exc_state_count)
@@ -107,7 +128,7 @@ catch_exception_raise (mach_port_t exception_port,
 		return KERN_FAILURE;
 	}
 
-        float_state_count = MACH_FLOAT_STATE_COUNT;
+	float_state_count = MACH_FLOAT_STATE_COUNT;
 	if (thread_get_state (thread, MACH_FLOAT_STATE_FLAVOR,
 			      (natural_t *)&float_state, &float_state_count)
 		!= KERN_SUCCESS)
@@ -119,11 +140,11 @@ catch_exception_raise (mach_port_t exception_port,
 
 	/* Modify registers so to have the thread resume executing the
 	fault handler */
-	call_fault_handler(exception,code[0],&exc_state,&thread_state,&float_state);
+	call_fault_handler(thread,exception,code[0],&exc_state,&thread_state,&float_state);
 
 	/* Set the faulting thread's register contents..
 	
-	See http://web.mit.edu/darwin/src/modules/xnu/osfmk/man/thread_set_state.html.  */
+	See http://web.mit.edu/darwin/src/modules/xnu/osfmk/man/thread_set_state.html.	*/
 	if (thread_set_state (thread, MACH_FLOAT_STATE_FLAVOR,
 			      (natural_t *)&float_state, float_state_count)
 		!= KERN_SUCCESS)
@@ -140,7 +161,6 @@ catch_exception_raise (mach_port_t exception_port,
 
 	return KERN_SUCCESS;
 }
-
 
 /* The main function of the thread listening for exceptions.  */
 static void *
@@ -159,7 +179,7 @@ mach_exception_thread (void *arg)
 			char data[1024];
 		}
 		msg;
-		/* Buffer for a reply message.  */
+		/* Buffer for a reply message.	*/
 		struct
 		{
 			mach_msg_header_t head;
@@ -212,17 +232,17 @@ void mach_initialize ()
 		fatal_error("mach_port_insert_right() failed",0);
 
 	/* The exceptions we want to catch. */
-	mask = EXC_MASK_BAD_ACCESS | EXC_MASK_ARITHMETIC;
+	mask = EXC_MASK_BAD_ACCESS | EXC_MASK_BAD_INSTRUCTION | EXC_MASK_ARITHMETIC;
 
 	/* Create the thread listening on the exception port.  */
-	start_thread(mach_exception_thread);
+	start_thread(mach_exception_thread,NULL);
 
 	/* Replace the exception port info for these exceptions with our own.
 	Note that we replace the exception port for the entire task, not only
 	for a particular thread.  This has the effect that when our exception
 	port gets the message, the thread specific exception port has already
 	been asked, and we don't need to bother about it.
-	See http://web.mit.edu/darwin/src/modules/xnu/osfmk/man/task_set_exception_ports.html.  */
+	See http://web.mit.edu/darwin/src/modules/xnu/osfmk/man/task_set_exception_ports.html.	*/
 	if (task_set_exception_ports (self, mask, our_exception_port,
 		EXCEPTION_DEFAULT, MACHINE_THREAD_STATE)
 		!= KERN_SUCCESS)

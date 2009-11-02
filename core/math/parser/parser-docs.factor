@@ -8,17 +8,21 @@ $nl
 "Integers can be converted to and from arbitrary bases. Floating point numbers can only be converted to and from base 10 and 16."
 $nl
 "Converting numbers to strings:"
-{ $subsection number>string }
-{ $subsection >bin }
-{ $subsection >oct }
-{ $subsection >hex }
-{ $subsection >base }
+{ $subsections
+    number>string
+    >bin
+    >oct
+    >hex
+    >base
+}
 "Converting strings to numbers:"
-{ $subsection string>number }
-{ $subsection bin> }
-{ $subsection oct> }
-{ $subsection hex> }
-{ $subsection base> }
+{ $subsections
+    string>number
+    bin>
+    oct>
+    hex>
+    base>
+}
 "You can also input literal numbers in a different base (" { $link "syntax-integers" } ")."
 { $see-also "prettyprint-numbers" } ;
 
@@ -61,7 +65,7 @@ HELP: bin>
 $nl
 "Outputs " { $link f } " if the string does not represent a number." } ;
 
-{ bin> POSTPONE: BIN: bin> .b } related-words
+{ >bin POSTPONE: BIN: bin> .b } related-words
 
 HELP: oct>
 { $values { "str" string } { "n/f" "a real number or " { $link f } } }
@@ -69,7 +73,7 @@ HELP: oct>
 $nl
 "Outputs " { $link f } " if the string does not represent a number." } ;
 
-{ oct> POSTPONE: OCT: oct> .o } related-words
+{ >oct POSTPONE: OCT: oct> .o } related-words
 
 HELP: hex>
 { $values { "str" string } { "n/f" "a real number or " { $link f } } }
@@ -77,7 +81,7 @@ HELP: hex>
 $nl
 "Outputs " { $link f } " if the string does not represent a number." } ;
 
-{ hex> POSTPONE: HEX: hex> .h } related-words
+{ >hex POSTPONE: HEX: hex> .h } related-words
 
 HELP: >base
 { $values { "n" real } { "radix" "an integer between 2 and 36" } { "str" string } }

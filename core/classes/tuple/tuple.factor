@@ -118,7 +118,7 @@ ERROR: bad-superclass class ;
     } case define-predicate ;
 
 : class-size ( class -- n )
-    superclasses [ "slots" word-prop length ] sigma ;
+    superclasses [ "slots" word-prop length ] map-sum ;
 
 : (instance-check-quot) ( class -- quot )
     [
@@ -280,16 +280,16 @@ M: tuple-class (define-tuple-class)
     [ 2drop ?define-symbol ] [ redefine-tuple-class ] if ;
 
 : thrower-effect ( slots -- effect )
-    [ dup array? [ first ] when ] map { "*" } <effect> ;
+    [ name>> ] map { "*" } <effect> ;
 
 : define-error-class ( class superclass slots -- )
     [ define-tuple-class ]
     [ 2drop reset-generic ]
     [
+        2drop
         [ dup [ boa throw ] curry ]
-        [ drop ]
-        [ thrower-effect ]
-        tri* define-declared
+        [ all-slots thrower-effect ]
+        bi define-declared
     ] 3tri ;
 
 : boa-effect ( class -- effect )

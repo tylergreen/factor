@@ -5,7 +5,7 @@ threads sequences byte-arrays io.binary io.backend.unix
 io.streams.duplex io.backend io.pathnames io.sockets.private
 io.files.private io.encodings.utf8 math.parser continuations
 libc combinators system accessors destructors unix locals init
-classes.struct ;
+classes.struct alien.data ;
 
 EXCLUDE: namespaces => bind ;
 EXCLUDE: io => read write ;
@@ -69,8 +69,12 @@ M: object establish-connection ( client-out remote -- )
         [ (io-error) ]
     } cond ;
 
+: ?bind-client ( socket -- )
+    bind-local-address get [ [ fd>> ] dip make-sockaddr/size bind io-error ] [ drop ] if* ; inline
+
 M: object ((client)) ( addrspec -- fd )
-    protocol-family SOCK_STREAM socket-fd dup init-client-socket ;
+    protocol-family SOCK_STREAM socket-fd
+    [ init-client-socket ] [ ?bind-client ] [ ] tri ;
 
 ! Server sockets - TCP and Unix domain
 : init-server-socket ( fd -- )
@@ -116,7 +120,7 @@ CONSTANT: packet-size 65536
 [ packet-size malloc receive-buffer set-global ] "io.sockets.unix" add-init-hook
 
 :: do-receive ( port -- packet sockaddr )
-    port addr>> empty-sockaddr/size :> len :> sockaddr
+    port addr>> empty-sockaddr/size :> ( sockaddr len )
     port handle>> handle-fd ! s
     receive-buffer get-global ! buf
     packet-size ! nbytes
@@ -159,7 +163,7 @@ M: local sockaddr-size drop sockaddr-un heap-size ;
 M: local empty-sockaddr drop sockaddr-un <struct> ;
 
 M: local make-sockaddr
-    path>> (normalize-path)
+    path>> absolute-path
     dup length 1 + max-un-path > [ "Path too long" throw ] when
     sockaddr-un <struct>
         AF_UNIX >>family

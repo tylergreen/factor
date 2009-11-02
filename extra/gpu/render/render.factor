@@ -1,5 +1,5 @@
 ! (c)2009 Joe Groff bsd license
-USING: accessors alien alien.c-types arrays
+USING: accessors alien alien.c-types alien.data arrays
 assocs classes classes.mixin classes.parser classes.singleton
 classes.tuple classes.tuple.private combinators combinators.tuple destructors fry
 generic generic.parser gpu gpu.buffers gpu.framebuffers
@@ -9,7 +9,9 @@ lexer locals math math.order math.parser namespaces opengl
 opengl.gl parser quotations sequences slots sorting
 specialized-arrays strings ui.gadgets.worlds variants
 vocabs.parser words ;
-SPECIALIZED-ARRAY: float
+FROM: math => float ;
+QUALIFIED-WITH: alien.c-types c
+SPECIALIZED-ARRAY: c:float
 SPECIALIZED-ARRAY: int
 SPECIALIZED-ARRAY: uint
 SPECIALIZED-ARRAY: void*
@@ -166,12 +168,12 @@ M: multi-index-elements render-vertex-indexes
 : (bind-texture-unit) ( texture texture-unit -- )
     swap [ GL_TEXTURE0 + glActiveTexture ] [ bind-texture drop ] bi* ; inline
 
-GENERIC: bind-uniform-textures ( program-instance uniform-tuple -- )
-GENERIC: bind-uniforms ( program-instance uniform-tuple -- )
+GENERIC: (bind-uniform-textures) ( program-instance uniform-tuple -- )
+GENERIC: (bind-uniforms) ( program-instance uniform-tuple -- )
 
-M: uniform-tuple bind-uniform-textures
+M: uniform-tuple (bind-uniform-textures)
     2drop ;
-M: uniform-tuple bind-uniforms
+M: uniform-tuple (bind-uniforms)
     2drop ;
 
 : uniform-slot-type ( uniform -- type )
@@ -330,13 +332,13 @@ DEFER: [bind-uniform-tuple]
     ] [
         { [ ] }
         name "." append 1array
-    ] if* :> name-prefixes :> quot-prefixes
+    ] if* :> ( quot-prefixes name-prefixes )
     type all-uniform-tuple-slots :> uniforms
 
     texture-unit quot-prefixes name-prefixes [| quot-prefix name-prefix |
         uniforms name-prefix [bind-uniform-tuple]
         quot-prefix prepend
-    ] 2map :> value-cleave :> texture-unit'
+    ] 2map :> ( texture-unit' value-cleave )
 
     texture-unit' 
     value>>-quot { value-cleave 2cleave } append ;
@@ -354,14 +356,14 @@ DEFER: [bind-uniform-tuple]
     } cond ;
 
 :: [bind-uniform-tuple] ( texture-unit uniforms prefix -- texture-unit' quot )
-    texture-unit uniforms [ prefix [bind-uniform] ] map :> uniforms-cleave :> texture-unit'
+    texture-unit uniforms [ prefix [bind-uniform] ] map :> ( texture-unit' uniforms-cleave )
 
     texture-unit'
     { uniforms-cleave 2cleave } >quotation ;
 
 :: [bind-uniforms] ( superclass uniforms -- quot )
     superclass "uniform-tuple-texture-units" word-prop 0 or :> first-texture-unit
-    superclass \ bind-uniforms method :> next-method
+    superclass \ (bind-uniforms) method :> next-method
     first-texture-unit uniforms "" [bind-uniform-tuple] nip :> bind-quot
 
     { 2dup next-method } bind-quot [ ] append-as ;
@@ -369,10 +371,10 @@ DEFER: [bind-uniform-tuple]
 : define-uniform-tuple-methods ( class superclass uniforms -- )
     [
         2drop
-        [ \ bind-uniform-textures create-method-in ]
+        [ \ (bind-uniform-textures) create-method-in ]
         [ [bind-uniform-textures] ] bi define
     ] [
-        [ \ bind-uniforms create-method-in ] 2dip
+        [ \ (bind-uniforms) create-method-in ] 2dip
         [bind-uniforms] define
     ] 3bi ;
 
@@ -479,12 +481,15 @@ TUPLE: render-set
 : 3<render-set> ( x y z quot-assoc -- render-set )
     render-set swap 3make-tuple ; inline
 
+: bind-uniforms ( program-instance uniforms -- )
+    [ (bind-uniform-textures) ] [ (bind-uniforms) ] 2bi ; inline
+
 : render ( render-set -- )
     {
         [ vertex-array>> program-instance>> handle>> glUseProgram ]
         [
             [ vertex-array>> program-instance>> ] [ uniforms>> ] bi
-            [ bind-uniform-textures ] [ bind-uniforms ] 2bi
+            bind-uniforms
         ]
         [
             framebuffer>> 

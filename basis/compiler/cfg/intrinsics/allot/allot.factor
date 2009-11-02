@@ -18,6 +18,9 @@ IN: compiler.cfg.intrinsics.allot
 : tuple-slot-regs ( layout -- vregs )
     [ second ds-load ] [ ^^load-literal ] bi prefix ;
 
+: ^^allot-tuple ( n -- dst )
+    2 + cells tuple ^^allot ;
+
 : emit-<tuple-boa> ( node -- )
     dup node-input-infos last literal>>
     dup array? [
@@ -36,23 +39,30 @@ IN: compiler.cfg.intrinsics.allot
 : expand-<array>? ( obj -- ? )
     dup integer? [ 0 8 between? ] [ drop f ] if ;
 
+: ^^allot-array ( n -- dst )
+    2 + cells array ^^allot ;
+
 :: emit-<array> ( node -- )
-    [let | len [ node node-input-infos first literal>> ] |
-        len expand-<array>? [
-            [let | elt [ ds-pop ]
-                   reg [ len ^^allot-array ] |
-                ds-drop
-                len reg array store-length
-                len reg elt array store-initial-element
-                reg ds-push
-            ]
-        ] [ node emit-primitive ] if
-    ] ;
+    node node-input-infos first literal>> :> len
+    len expand-<array>? [
+        ds-pop :> elt
+        len ^^allot-array :> reg
+        ds-drop
+        len reg array store-length
+        len reg elt array store-initial-element
+        reg ds-push
+    ] [ node emit-primitive ] if ;
+
+: expand-(byte-array)? ( obj -- ? )
+    dup integer? [ 0 1024 between? ] [ drop f ] if ;
 
 : expand-<byte-array>? ( obj -- ? )
     dup integer? [ 0 32 between? ] [ drop f ] if ;
 
 : bytes>cells ( m -- n ) cell align cell /i ;
+
+: ^^allot-byte-array ( n -- dst )
+    2 cells + byte-array ^^allot ;
 
 : emit-allot-byte-array ( len -- dst )
     ds-drop
@@ -60,7 +70,7 @@ IN: compiler.cfg.intrinsics.allot
     [ byte-array store-length ] [ ds-push ] [ ] tri ;
 
 : emit-(byte-array) ( node -- )
-    dup node-input-infos first literal>> dup expand-<byte-array>?
+    dup node-input-infos first literal>> dup expand-(byte-array)?
     [ nip emit-allot-byte-array drop ] [ drop emit-primitive ] if ;
 
 :: emit-<byte-array> ( node -- )

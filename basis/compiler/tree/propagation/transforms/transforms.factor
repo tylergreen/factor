@@ -14,7 +14,7 @@ IN: compiler.tree.propagation.transforms
     ! If first input has a known type and second input is an
     ! object, we convert this to [ swap equal? ].
     in-d>> first2 value-info class>> object class= [
-        value-info class>> \ equal? specific-method
+        value-info class>> \ equal? method-for-class
         [ swap equal? ] f ?
     ] [ drop f ] if
 ] "custom-inlining" set-word-prop
@@ -42,8 +42,26 @@ IN: compiler.tree.propagation.transforms
 : positive-fixnum? ( obj -- ? )
     { [ fixnum? ] [ 0 >= ] } 1&& ;
 
-: simplify-bitand? ( value -- ? )
-    value-info literal>> positive-fixnum? ;
+: simplify-bitand? ( value1 value2 -- ? )
+    [ literal>> positive-fixnum? ]
+    [ class>> fixnum swap class<= ]
+    bi* and ;
+
+: all-ones? ( n -- ? ) dup 1 + bitand zero? ; inline
+
+: redundant-bitand? ( value1 value2 -- ? )
+    [ interval>> ] [ literal>> ] bi* {
+        [ nip integer? ]
+        [ nip all-ones? ]
+        [ 0 swap [a,b] interval-subset? ]
+    } 2&& ;
+
+: zero-bitand? ( value1 value2 -- ? )
+    [ interval>> ] [ literal>> ] bi* {
+        [ nip integer? ]
+        [ nip bitnot all-ones? ]
+        [ 0 swap bitnot [a,b] interval-subset? ]
+    } 2&& ;
 
 {
     bitand-integer-integer
@@ -52,23 +70,45 @@ IN: compiler.tree.propagation.transforms
     bitand
 } [
     [
-        {
+        in-d>> first2 [ value-info ] bi@ {
             {
-                [ dup in-d>> first simplify-bitand? ]
-                [ drop [ >fixnum fixnum-bitand ] ]
+                [ 2dup zero-bitand? ]
+                [ 2drop [ 2drop 0 ] ]
             }
             {
-                [ dup in-d>> second simplify-bitand? ]
-                [ drop [ [ >fixnum ] dip fixnum-bitand ] ]
+                [ 2dup swap zero-bitand? ]
+                [ 2drop [ 2drop 0 ] ]
             }
-            [ drop f ]
+            {
+                [ 2dup redundant-bitand? ]
+                [ 2drop [ drop ] ]
+            }
+            {
+                [ 2dup swap redundant-bitand? ]
+                [ 2drop [ nip ] ]
+            }
+            {
+                [ 2dup simplify-bitand? ]
+                [ 2drop [ >fixnum fixnum-bitand ] ]
+            }
+            {
+                [ 2dup swap simplify-bitand? ]
+                [ 2drop [ [ >fixnum ] dip fixnum-bitand ] ]
+            }
+            [ 2drop f ]
         } cond
     ] "custom-inlining" set-word-prop
 ] each
 
 ! Speeds up 2^
+: 2^? ( #call -- ? )
+    in-d>> first2 [ value-info ] bi@
+    [ { [ literal>> 1 = ] [ class>> fixnum class<= ] } 1&& ]
+    [ class>> fixnum class<= ]
+    bi* and ;
+
 \ shift [
-    in-d>> first value-info literal>> 1 = [
+     2^? [
         cell-bits tag-bits get - 1 -
         '[
             >fixnum dup 0 < [ 2drop 0 ] [
@@ -173,12 +213,12 @@ ERROR: bad-partial-eval quot word ;
     ] [ drop f ] if
 ] 1 define-partial-eval
 
-: memq-quot ( seq -- newquot )
+: member-eq-quot ( seq -- newquot )
     [ [ dupd eq? ] curry [ drop t ] ] { } map>assoc
     [ drop f ] suffix [ cond ] curry ;
 
-\ memq? [
-    dup sequence? [ memq-quot ] [ drop f ] if
+\ member-eq? [
+    dup sequence? [ member-eq-quot ] [ drop f ] if
 ] 1 define-partial-eval
 
 ! Membership testing

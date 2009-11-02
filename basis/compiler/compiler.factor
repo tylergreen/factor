@@ -44,36 +44,33 @@ SYMBOL: compiled
     dup recompile-callers?
     [ compiled-usage keys [ queue-compile ] each ] [ drop ] if ;
 
+: compiler-message ( string -- )
+    "trace-compilation" get [ global [ print flush ] bind ] [ drop ] if ;
+
 : start ( word -- )
-    "trace-compilation" get [ dup name>> print flush ] when
+    dup name>> compiler-message
     H{ } clone dependencies set
     H{ } clone generic-dependencies set
     clear-compiler-error ;
 
 GENERIC: no-compile? ( word -- ? )
 
-M: word no-compile? "no-compile" word-prop ;
-
 M: method-body no-compile? "method-generic" word-prop no-compile? ;
 
 M: predicate-engine-word no-compile? "owner-generic" word-prop no-compile? ;
 
+M: word no-compile?
+    {
+        [ macro? ]
+        [ inline? ]
+        [ "special" word-prop ]
+        [ "no-compile" word-prop ]
+    } 1|| ;
+
 : ignore-error? ( word error -- ? )
     #! Ignore some errors on inline combinators, macros, and special
     #! words such as 'call'.
-    [
-        {
-            [ macro? ]
-            [ inline? ]
-            [ no-compile? ]
-            [ "special" word-prop ]
-        } 1||
-    ] [
-        {
-            [ do-not-compile? ]
-            [ literal-expected? ]
-        } 1||
-    ] bi* and ;
+    [ no-compile? ] [ { [ do-not-compile? ] [ literal-expected? ] } 1|| ] bi* and ;
 
 : finish ( word -- )
     #! Recompile callers if the word's stack effect changed, then
@@ -194,7 +191,7 @@ M: optimizing-compiler recompile ( words -- alist )
         compile-queue get compile-loop
         compiled get >alist
     ] with-scope
-    "trace-compilation" get [ "--- compile done" print flush ] when ;
+    "--- compile done" compiler-message ;
 
 : with-optimizer ( quot -- )
     [ optimizing-compiler compiler-impl ] dip with-variable ; inline

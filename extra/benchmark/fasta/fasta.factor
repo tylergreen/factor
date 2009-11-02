@@ -1,7 +1,7 @@
 ! Based on http://shootout.alioth.debian.org/gp4/benchmark.php?test=fasta&lang=java&id=2
-USING: math kernel io io.files locals multiline assocs sequences
-sequences.private benchmark.reverse-complement hints
-io.encodings.ascii byte-arrays specialized-arrays ;
+USING: alien.c-types math kernel io io.files locals multiline
+assocs sequences sequences.private benchmark.reverse-complement
+hints io.encodings.ascii byte-arrays specialized-arrays ;
 SPECIALIZED-ARRAY: double
 IN: benchmark.fasta
 
@@ -71,37 +71,35 @@ CONSTANT: homo-sapiens
     [ make-random-fasta ] 2curry split-lines ; inline
 
 :: make-repeat-fasta ( k len alu -- k' )
-    [let | kn [ alu length ] |
-        len [ k + kn mod alu nth-unsafe ] "" map-as print
-        k len +
-    ] ; inline
+    alu length :> kn
+    len [ k + kn mod alu nth-unsafe ] "" map-as print
+    k len + ; inline
 
 : write-repeat-fasta ( n alu desc id -- )
     write-description
-    [let | k! [ 0 ] alu [ ] |
+    [let
+        :> alu
+        0 :> k!
         [| len | k len alu make-repeat-fasta k! ] split-lines
     ] ; inline
 
 : fasta ( n out -- )
     homo-sapiens make-cumulative
     IUB make-cumulative
-    [let | homo-sapiens-floats [ ]
-           homo-sapiens-chars [ ]
-           IUB-floats [ ]
-           IUB-chars [ ]
-           out [ ]
-           n [ ]
-           seed [ initial-seed ] |
+    [let
+        :> ( n out IUB-chars IUB-floats homo-sapiens-chars homo-sapiens-floats )
+        initial-seed :> seed
 
         out ascii [
             n 2 * ALU "Homo sapiens alu" "ONE" write-repeat-fasta
 
             initial-seed
-            n 3 * homo-sapiens-chars homo-sapiens-floats "IUB ambiguity codes" "TWO" write-random-fasta
-            n 5 * IUB-chars IUB-floats "Homo sapiens frequency" "THREE" write-random-fasta
+            n 3 * homo-sapiens-chars homo-sapiens-floats
+            "IUB ambiguity codes" "TWO" write-random-fasta
+            n 5 * IUB-chars IUB-floats
+            "Homo sapiens frequency" "THREE" write-random-fasta
             drop
         ] with-file-writer
-
     ] ;
 
 : run-fasta ( -- ) 2500000 reverse-complement-in fasta ;

@@ -9,8 +9,10 @@ compiler.tree.propagation.info compiler.tree.def-use
 compiler.tree.debugger compiler.tree.checker
 slots.private words hashtables classes assocs locals
 specialized-arrays system sorting math.libm
-math.intervals quotations effects alien ;
+math.intervals quotations effects alien alien.data ;
+FROM: math => float ;
 SPECIALIZED-ARRAY: double
+SPECIALIZED-ARRAY: void*
 IN: compiler.tree.propagation.tests
 
 [ V{ } ] [ [ ] final-classes ] unit-test
@@ -406,7 +408,15 @@ IN: compiler.tree.propagation.tests
 ] unit-test
 
 [ V{ fixnum } ] [
+    [ { fixnum fixnum } declare 7 bitand neg >bignum shift ] final-classes
+] unit-test
+
+[ V{ fixnum } ] [
     [ { fixnum } declare 1 swap 7 bitand shift ] final-classes
+] unit-test
+
+[ V{ fixnum } ] [
+    [ { fixnum } declare 1 swap 7 bitand >bignum shift ] final-classes
 ] unit-test
 
 cell-bits 32 = [
@@ -763,17 +773,17 @@ MIXIN: empty-mixin
     [ { word object } declare equal? ] final-classes
 ] unit-test
 
-! [ V{ string } ] [
-!     [ dup string? t xor [ "A" throw ] [ ] if ] final-classes
-! ] unit-test
+[ V{ string } ] [
+    [ dup string? t xor [ "A" throw ] [ ] if ] final-classes
+] unit-test
 
-! [ t ] [ [ dup t xor or ] final-classes first true-class? ] unit-test
+[ t ] [ [ dup t xor or ] final-classes first true-class? ] unit-test
 
-! [ t ] [ [ dup t xor swap or ] final-classes first true-class? ] unit-test
+[ t ] [ [ dup t xor swap or ] final-classes first true-class? ] unit-test
 
-! [ t ] [ [ dup t xor and ] final-classes first false-class? ] unit-test
+[ t ] [ [ dup t xor and ] final-classes first false-class? ] unit-test
 
-! [ t ] [ [ dup t xor swap and ] final-classes first false-class? ] unit-test
+[ t ] [ [ dup t xor swap and ] final-classes first false-class? ] unit-test
 
 ! generalize-counter-interval wasn't being called in all the right places.
 ! bug found by littledan
@@ -857,8 +867,8 @@ SYMBOL: not-an-assoc
 [ t ] [ [ { 1 2 3 } member? ] { member? } inlined? ] unit-test
 [ f ] [ [ { 1 2 3 } swap member? ] { member? } inlined? ] unit-test
 
-[ t ] [ [ { 1 2 3 } memq? ] { memq? } inlined? ] unit-test
-[ f ] [ [ { 1 2 3 } swap memq? ] { memq? } inlined? ] unit-test
+[ t ] [ [ { 1 2 3 } member-eq? ] { member-eq? } inlined? ] unit-test
+[ f ] [ [ { 1 2 3 } swap member-eq? ] { member-eq? } inlined? ] unit-test
 
 [ t ] [ [ V{ } clone ] { clone (clone) } inlined? ] unit-test
 [ f ] [ [ { } clone ] { clone (clone) } inlined? ] unit-test
@@ -893,3 +903,25 @@ M: tuple-with-read-only-slot clone
 [ t ] [ [ >fixnum dup 0 >= [ 16 /i ] when ] { /i fixnum/i fixnum/i-fast } inlined? ] unit-test
 [ f ] [ [ >fixnum dup 0 >= [ 16 /i ] when ] { fixnum-shift-fast } inlined? ] unit-test
 [ f ] [ [ >float dup 0 >= [ 16 /i ] when ] { /i float/f } inlined? ] unit-test
+
+! We want this to inline
+[ t ] [ [ void* <c-direct-array> ] { <c-direct-array> } inlined? ] unit-test
+[ V{ void*-array } ] [ [ void* <c-direct-array> ] final-classes ] unit-test
+
+! bitand identities
+[ t ] [ [ alien-unsigned-1 255 bitand ] { bitand fixnum-bitand } inlined? ] unit-test
+[ t ] [ [ alien-unsigned-1 255 swap bitand ] { bitand fixnum-bitand } inlined? ] unit-test
+
+[ t ] [ [ { fixnum } declare 256 rem -256 bitand ] { fixnum-bitand } inlined? ] unit-test
+[ t ] [ [ { fixnum } declare 250 rem -256 bitand ] { fixnum-bitand } inlined? ] unit-test
+[ f ] [ [ { fixnum } declare 257 rem -256 bitand ] { fixnum-bitand } inlined? ] unit-test
+
+[ V{ fixnum } ] [ [ >bignum 10 mod 2^ ] final-classes ] unit-test
+[ V{ bignum } ] [ [ >bignum 10 bitand ] final-classes ] unit-test
+[ V{ bignum } ] [ [ >bignum 10 >bignum bitand ] final-classes ] unit-test
+[ V{ bignum } ] [ [ >bignum 10 mod ] final-classes ] unit-test
+[ V{ bignum } ] [ [ { fixnum } declare -1 >bignum bitand ] final-classes ] unit-test
+[ V{ bignum } ] [ [ { fixnum } declare -1 >bignum swap bitand ] final-classes ] unit-test
+
+! Could be bignum not integer but who cares
+[ V{ integer } ] [ [ 10 >bignum bitand ] final-classes ] unit-test

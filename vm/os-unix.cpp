@@ -3,18 +3,39 @@
 namespace factor
 {
 
-void start_thread(void *(*start_routine)(void *))
+THREADHANDLE start_thread(void *(*start_routine)(void *),void *args)
 {
 	pthread_attr_t attr;
 	pthread_t thread;
-
 	if (pthread_attr_init (&attr) != 0)
 		fatal_error("pthread_attr_init() failed",0);
-	if (pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED) != 0)
+	if (pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_JOINABLE) != 0)
 		fatal_error("pthread_attr_setdetachstate() failed",0);
-	if (pthread_create (&thread, &attr, start_routine, NULL) != 0)
+	if (pthread_create (&thread, &attr, start_routine, args) != 0)
 		fatal_error("pthread_create() failed",0);
 	pthread_attr_destroy (&attr);
+	return thread;
+}
+
+pthread_key_t tlsKey = 0;
+
+void init_platform_globals()
+{
+	if (pthread_key_create(&tlsKey, NULL) != 0)
+		fatal_error("pthread_key_create() failed",0);
+
+}
+
+void register_vm_with_thread(factor_vm *vm)
+{
+	pthread_setspecific(tlsKey,vm);
+}
+
+factor_vm *tls_vm()
+{
+	factor_vm *vm = (factor_vm*)pthread_getspecific(tlsKey);
+	assert(vm != NULL);
+	return vm;
 }
 
 static void *null_dll;
@@ -31,47 +52,51 @@ void sleep_micros(cell usec)
 	usleep(usec);
 }
 
-void init_ffi()
+void factor_vm::init_ffi()
 {
 	/* NULL_DLL is "libfactor.dylib" for OS X and NULL for generic unix */
 	null_dll = dlopen(NULL_DLL,RTLD_LAZY);
 }
 
-void ffi_dlopen(dll *dll)
+void factor_vm::ffi_dlopen(dll *dll)
 {
 	dll->dll = dlopen(alien_offset(dll->path), RTLD_LAZY);
 }
 
-void *ffi_dlsym(dll *dll, symbol_char *symbol)
+void *factor_vm::ffi_dlsym(dll *dll, symbol_char *symbol)
 {
 	void *handle = (dll == NULL ? null_dll : dll->dll);
 	return dlsym(handle,symbol);
 }
 
-void ffi_dlclose(dll *dll)
+void factor_vm::ffi_dlclose(dll *dll)
 {
 	if(dlclose(dll->dll))
-		general_error(ERROR_FFI,F,F,NULL);
+		general_error(ERROR_FFI,false_object,false_object,NULL);
 	dll->dll = NULL;
 }
 
-PRIMITIVE(existsp)
+void factor_vm::primitive_existsp()
 {
 	struct stat sb;
 	char *path = (char *)(untag_check<byte_array>(dpop()) + 1);
 	box_boolean(stat(path,&sb) >= 0);
 }
 
-segment *alloc_segment(cell size)
+segment::segment(cell size_, bool executable_p)
 {
+	size = size_;
+
 	int pagesize = getpagesize();
 
-	char *array = (char *)mmap(NULL,pagesize + size + pagesize,
-		PROT_READ | PROT_WRITE | PROT_EXEC,
-		MAP_ANON | MAP_PRIVATE,-1,0);
+	int prot;
+	if(executable_p)
+		prot = (PROT_READ | PROT_WRITE | PROT_EXEC);
+	else
+		prot = (PROT_READ | PROT_WRITE);
 
-	if(array == (char*)-1)
-		out_of_memory();
+	char *array = (char *)mmap(NULL,pagesize + size + pagesize,prot,MAP_ANON | MAP_PRIVATE,-1,0);
+	if(array == (char*)-1) out_of_memory();
 
 	if(mprotect(array,pagesize,PROT_NONE) == -1)
 		fatal_error("Cannot protect low guard page",(cell)array);
@@ -79,69 +104,58 @@ segment *alloc_segment(cell size)
 	if(mprotect(array + pagesize + size,pagesize,PROT_NONE) == -1)
 		fatal_error("Cannot protect high guard page",(cell)array);
 
-	segment *retval = (segment *)safe_malloc(sizeof(segment));
-
-	retval->start = (cell)(array + pagesize);
-	retval->size = size;
-	retval->end = retval->start + size;
-
-	return retval;
+	start = (cell)(array + pagesize);
+	end = start + size;
 }
 
-void dealloc_segment(segment *block)
+segment::~segment()
 {
 	int pagesize = getpagesize();
-
-	int retval = munmap((void*)(block->start - pagesize),
-		pagesize + block->size + pagesize);
-	
+	int retval = munmap((void*)(start - pagesize),pagesize + size + pagesize);
 	if(retval)
-		fatal_error("dealloc_segment failed",0);
-
-	free(block);
+		fatal_error("Segment deallocation failed",0);
 }
-  
-static stack_frame *uap_stack_pointer(void *uap)
+
+void factor_vm::dispatch_signal(void *uap, void (handler)())
 {
-	/* There is a race condition here, but in practice a signal
-	delivered during stack frame setup/teardown or while transitioning
-	from Factor to C is a sign of things seriously gone wrong, not just
-	a divide by zero or stack underflow in the listener */
 	if(in_code_heap_p(UAP_PROGRAM_COUNTER(uap)))
 	{
-		stack_frame *ptr = (stack_frame *)ucontext_stack_pointer(uap);
-		if(!ptr)
-			critical_error("Invalid uap",(cell)uap);
-		return ptr;
+		stack_frame *ptr = (stack_frame *)UAP_STACK_POINTER(uap);
+		assert(ptr);
+		signal_callstack_top = ptr;
 	}
 	else
-		return NULL;
+		signal_callstack_top = NULL;
+
+	UAP_STACK_POINTER(uap) = align_stack_pointer(UAP_STACK_POINTER(uap));
+	UAP_PROGRAM_COUNTER(uap) = (cell)handler;
 }
 
 void memory_signal_handler(int signal, siginfo_t *siginfo, void *uap)
 {
-	signal_fault_addr = (cell)siginfo->si_addr;
-	signal_callstack_top = uap_stack_pointer(uap);
-	UAP_PROGRAM_COUNTER(uap) = (cell)memory_signal_handler_impl;
+	factor_vm *vm = tls_vm();
+	vm->signal_fault_addr = (cell)siginfo->si_addr;
+	vm->dispatch_signal(uap,factor::memory_signal_handler_impl);
 }
 
 void misc_signal_handler(int signal, siginfo_t *siginfo, void *uap)
 {
-	signal_number = signal;
-	signal_callstack_top = uap_stack_pointer(uap);
-	UAP_PROGRAM_COUNTER(uap) = (cell)misc_signal_handler_impl;
+	factor_vm *vm = tls_vm();
+	vm->signal_number = signal;
+	vm->dispatch_signal(uap,factor::misc_signal_handler_impl);
 }
 
 void fpe_signal_handler(int signal, siginfo_t *siginfo, void *uap)
 {
-	signal_number = signal;
-	signal_callstack_top = uap_stack_pointer(uap);
-        signal_fpu_status = fpu_status(uap_fpu_status(uap));
-        uap_clear_fpu_status(uap);
-	UAP_PROGRAM_COUNTER(uap) =
-            (siginfo->si_code == FPE_INTDIV || siginfo->si_code == FPE_INTOVF)
-                ? (cell)misc_signal_handler_impl
-                : (cell)fp_signal_handler_impl;
+	factor_vm *vm = tls_vm();
+	vm->signal_number = signal;
+	vm->signal_fpu_status = fpu_status(uap_fpu_status(uap));
+	uap_clear_fpu_status(uap);
+
+	vm->dispatch_signal(uap,
+		(siginfo->si_code == FPE_INTDIV || siginfo->si_code == FPE_INTOVF)
+		? factor::misc_signal_handler_impl
+		: factor::fp_signal_handler_impl);
 }
 
 static void sigaction_safe(int signum, const struct sigaction *act, struct sigaction *oldact)
@@ -184,7 +198,6 @@ void unix_init_signals()
 	misc_sigaction.sa_sigaction = misc_signal_handler;
 	misc_sigaction.sa_flags = SA_SIGINFO;
 
-	sigaction_safe(SIGABRT,&misc_sigaction,NULL);
 	sigaction_safe(SIGQUIT,&misc_sigaction,NULL);
 	sigaction_safe(SIGILL,&misc_sigaction,NULL);
 
@@ -320,7 +333,7 @@ void open_console()
 	stdin_read = filedes[0];
 	stdin_write = filedes[1];
 
-	start_thread(stdin_loop);
+	start_thread(stdin_loop,NULL);
 }
 
 VM_C_API void wait_for_stdin()

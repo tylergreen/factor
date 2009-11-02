@@ -3,14 +3,19 @@
 namespace factor
 {
 
-VM_C_API void box_boolean(bool value)
+void factor_vm::box_boolean(bool value)
 {
-	dpush(value ? T : F);
+	dpush(tag_boolean(value));
 }
 
-VM_C_API bool to_boolean(cell value)
+VM_C_API void box_boolean(bool value, factor_vm *parent)
 {
-	return value != F;
+	return parent->box_boolean(value);
+}
+
+VM_C_API bool to_boolean(cell value, factor_vm *parent)
+{
+	return parent->to_boolean(value);
 }
 
 }

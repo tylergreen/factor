@@ -2,7 +2,7 @@
 ! See http://factorcode.org/license.txt for BSD license.
 USING: bootstrap.image.private kernel namespaces system
 cpu.x86.assembler cpu.x86.assembler.operands layouts
-vocabs parser compiler.constants ;
+vocabs parser compiler.constants sequences ;
 IN: bootstrap.x86
 
 4 \ cell set
@@ -11,11 +11,13 @@ IN: bootstrap.x86
 : shift-arg ( -- reg ) ECX ;
 : div-arg ( -- reg ) EAX ;
 : mod-arg ( -- reg ) EDX ;
-: arg ( -- reg ) EAX ;
+: arg1 ( -- reg ) EAX ;
+: arg2 ( -- reg ) EDX ;
 : temp0 ( -- reg ) EAX ;
 : temp1 ( -- reg ) EDX ;
 : temp2 ( -- reg ) ECX ;
 : temp3 ( -- reg ) EBX ;
+: safe-reg ( -- reg ) EAX ;
 : stack-reg ( -- reg ) ESP ;
 : ds-reg ( -- reg ) ESI ;
 : rs-reg ( -- reg ) EDI ;
@@ -27,9 +29,11 @@ IN: bootstrap.x86
     temp0 0 [] MOV rc-absolute-cell rt-stack-chain jit-rel
     ! save stack pointer
     temp0 [] stack-reg MOV
+    ! pass vm ptr to primitive
+    arg1 0 MOV rc-absolute-cell rt-vm jit-rel
     ! call the primitive
     0 JMP rc-relative rt-primitive jit-rel
 ] jit-primitive jit-define
 
-<< "vocab:cpu/x86/bootstrap.factor" parse-file parsed >>
+<< "vocab:cpu/x86/bootstrap.factor" parse-file suffix! >>
 call

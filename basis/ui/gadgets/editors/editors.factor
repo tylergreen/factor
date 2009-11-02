@@ -1,14 +1,14 @@
 ! Copyright (C) 2006, 2009 Slava Pestov
 ! See http://factorcode.org/license.txt for BSD license.
-USING: accessors arrays documents documents.elements kernel math
-math.ranges models models.arrow namespaces locals fry make opengl
-opengl.gl sequences strings math.vectors math.functions sorting colors
-colors.constants combinators assocs math.order calendar alarms
-continuations ui.clipboards ui.commands ui.gadgets ui.gadgets.borders
-ui.gadgets.buttons ui.gadgets.labels ui.gadgets.scrollers
-ui.gadgets.menus ui.gadgets.wrappers ui.render ui.pens.solid
-ui.gadgets.line-support ui.text ui.gestures ui.baseline-alignment
-math.rectangles splitting unicode.categories grouping ;
+USING: accessors alarms arrays assocs calendar colors.constants
+combinators combinators.short-circuit documents
+documents.elements fry grouping kernel locals make math
+math.functions math.order math.ranges math.rectangles
+math.vectors models models.arrow namespaces opengl sequences
+sorting splitting ui.baseline-alignment ui.clipboards
+ui.commands ui.gadgets ui.gadgets.borders
+ui.gadgets.line-support ui.gadgets.menus ui.gadgets.scrollers
+ui.gestures ui.pens.solid ui.render ui.text unicode.categories ;
 EXCLUDE: fonts => selection ;
 IN: ui.gadgets.editors
 
@@ -16,6 +16,8 @@ TUPLE: editor < line-gadget
 caret-color
 caret mark
 focused? blink blink-alarm ;
+
+<PRIVATE
 
 : <loc> ( -- loc ) { 0 0 } <model> ;
 
@@ -27,6 +29,8 @@ focused? blink blink-alarm ;
     COLOR: red >>caret-color
     monospace-font >>font ; inline
 
+PRIVATE>
+
 : new-editor ( class -- editor )
     new-line-gadget
         <document> >>model
@@ -36,15 +40,17 @@ focused? blink blink-alarm ;
 : <editor> ( -- editor )
     editor new-editor ;
 
+<PRIVATE
+
 : activate-editor-model ( editor model -- )
-    2dup add-connection
-    dup activate-model
-    swap model>> add-loc ;
+    [ add-connection ]
+    [ nip activate-model ]
+    [ swap model>> add-loc ] 2tri ;
 
 : deactivate-editor-model ( editor model -- )
-    2dup remove-connection
-    dup deactivate-model
-    swap model>> remove-loc ;
+    [ remove-connection ]
+    [ nip deactivate-model ]
+    [ swap model>> remove-loc ] 2tri ;
 
 : blink-caret ( editor -- )
     [ not ] change-blink relayout-1 ;
@@ -70,24 +76,23 @@ SYMBOL: blink-interval
         bi
     ] [ drop ] if ;
 
+PRIVATE>
+
 M: editor graft*
-    dup
-    dup caret>> activate-editor-model
-    dup mark>> activate-editor-model ;
+    [ dup caret>> activate-editor-model ]
+    [ dup mark>> activate-editor-model ] bi ;
 
 M: editor ungraft*
-    dup
-    dup stop-blinking
-    dup caret>> deactivate-editor-model
-    dup mark>> deactivate-editor-model ;
+    [ stop-blinking ]
+    [ dup caret>> deactivate-editor-model ]
+    [ dup mark>> deactivate-editor-model ] tri ;
 
 : editor-caret ( editor -- loc ) caret>> value>> ;
 
 : editor-mark ( editor -- loc ) mark>> value>> ;
 
 : set-caret ( loc editor -- )
-    [ model>> validate-loc ] keep
-    caret>> set-model ;
+    [ model>> validate-loc ] [ caret>> ] bi set-model ;
 
 : change-caret ( editor quot -- )
     [ [ [ editor-caret ] [ model>> ] bi ] dip call ] [ drop ] 2bi
@@ -136,7 +141,7 @@ M: editor ungraft*
     [ editor-caret ] keep loc>point ;
 
 : caret-dim ( editor -- dim )
-    line-height 0 swap 2array ;
+    [ 0 ] dip line-height 2array ;
 
 : scroll>caret ( editor -- )
     dup graft-state>> second [
@@ -145,8 +150,10 @@ M: editor ungraft*
         ] keep scroll>rect
     ] [ drop ] if ;
 
+<PRIVATE
+
 : draw-caret? ( editor -- ? )
-    [ focused?>> ] [ blink>> ] bi and ;
+    { [ focused?>> ] [ blink>> ] } 1&& ;
 
 : draw-caret ( editor -- )
     dup draw-caret? [
@@ -166,8 +173,9 @@ TUPLE: selected-line start end first? last? ;
 
 : compute-selection ( editor -- assoc )
     dup gadget-selection? [
-        [ selection-start/end [ [ first ] bi@ [a,b] ] 2keep ] keep model>>
-        '[ [ _ _ ] keep _ start/end-on-line 2array ] H{ } map>assoc
+        [ selection-start/end [ [ first ] bi@ [a,b] ] [ ] 2bi ]
+        [ model>> ] bi
+        '[ [ _ _ ] [ _ start/end-on-line ] bi 2array ] H{ } map>assoc
     ] [ drop f ] if ;
 
 :: draw-selection ( line pair editor -- )
@@ -186,10 +194,12 @@ TUPLE: selected-line start end first? last? ;
     ] [
         [ draw-selection ]
         [
-            [ [ first2 ] [ selection-color>> ] bi* <selection> ] keep
-            draw-unselected-line
+            [ [ first2 ] [ selection-color>> ] bi* <selection> ]
+            [ draw-unselected-line ] bi
         ] 3bi
     ] if ;
+
+PRIVATE>
 
 M: editor draw-line ( line index editor -- )
     [ selected-lines get at ] dip over
@@ -208,33 +218,36 @@ M: editor baseline font>> font-metrics ascent>> ;
 
 M: editor cap-height font>> font-metrics cap-height>> ;
 
-: contents-changed ( model editor -- )
-    swap
-    over caret>> [ over validate-loc ] (change-model)
-    over mark>> [ over validate-loc ] (change-model)
-    drop relayout ;
+<PRIVATE
 
-: caret/mark-changed ( model editor -- )
-    nip [ restart-blinking ] [ scroll>caret ] bi ;
+: contents-changed ( model editor -- )
+    [ [ nip caret>> ] [ drop ] 2bi '[ _ validate-loc ] (change-model) ]
+    [ [ nip mark>> ] [ drop ] 2bi '[ _ validate-loc ] (change-model) ]
+    [ nip relayout ] 2tri ;
+
+: caret/mark-changed ( editor -- )
+    [ restart-blinking ] keep scroll>caret ;
+
+PRIVATE>
 
 M: editor model-changed
     {
         { [ 2dup model>> eq? ] [ contents-changed ] }
-        { [ 2dup caret>> eq? ] [ caret/mark-changed ] }
-        { [ 2dup mark>> eq? ] [ caret/mark-changed ] }
+        { [ 2dup caret>> eq? ] [ nip caret/mark-changed ] }
+        { [ 2dup mark>> eq? ] [ nip caret/mark-changed ] }
     } cond ;
 
 M: editor gadget-selection?
     selection-start/end = not ;
 
 M: editor gadget-selection
-    [ selection-start/end ] keep model>> doc-range ;
+    [ selection-start/end ] [ model>> ] bi doc-range ;
 
 : remove-selection ( editor -- )
-    [ selection-start/end ] keep model>> remove-doc-range ;
+    [ selection-start/end ] [ model>> ] bi remove-doc-range ;
 
 M: editor user-input*
-    [ selection-start/end ] keep model>> set-doc-range t ;
+    [ selection-start/end ] [ model>> ] bi set-doc-range t ;
 
 : editor-string ( editor -- string )
     model>> doc-string ;
@@ -245,9 +258,9 @@ M: editor user-input*
 M: editor gadget-text* editor-string % ;
 
 : extend-selection ( editor -- )
-    dup request-focus
-    dup restart-blinking
-    dup caret>> click-loc ;
+    [ request-focus ]
+    [ restart-blinking ]
+    [ dup caret>> click-loc ] tri ;
 
 : mouse-elt ( -- element )
     hand-click# get {
@@ -260,24 +273,25 @@ M: editor gadget-text* editor-string % ;
 
 : drag-selection-caret ( loc editor element -- loc )
     [
-        [ drag-direction? ] 2keep model>>
+        [ drag-direction? ] [ model>> ] 2bi
     ] dip prev/next-elt ? ;
 
 : drag-selection-mark ( loc editor element -- loc )
     [
-        [ drag-direction? not ] keep
-        [ editor-mark ] [ model>> ] bi
+        [ drag-direction? not ]
+        [ editor-mark ]
+        [ model>> ] tri
     ] dip prev/next-elt ? ;
 
 : drag-caret&mark ( editor -- caret mark )
-    dup clicked-loc swap mouse-elt
-    [ drag-selection-caret ] 3keep
-    drag-selection-mark ;
+    [ clicked-loc ] [ mouse-elt ] bi
+    [ drag-selection-caret ]
+    [ drag-selection-mark ] 3bi ;
 
 : drag-selection ( editor -- )
-    dup drag-caret&mark
-    pick mark>> set-model
-    swap caret>> set-model ;
+    [ drag-caret&mark ]
+    [ mark>> set-model ]
+    [ caret>> set-model ] tri ;
 
 : editor-cut ( editor clipboard -- )
     [ gadget-copy ] [ drop remove-selection ] 2bi ;
@@ -343,11 +357,9 @@ M: editor gadget-text* editor-string % ;
 : delete-to-end-of-line ( editor -- ) 
     one-line-elt editor-backspace ;
 
-: com-undo ( editor -- )
-    model>> undo ;
+: com-undo ( editor -- ) model>> undo ;
 
-: com-redo ( editor -- )
-    model>> redo ;
+: com-redo ( editor -- ) model>> redo ;
 
 editor "editing" f {
     { undo-action com-undo }
@@ -515,31 +527,50 @@ PRIVATE>
     "\n" swap user-input* drop ;
 
 : change-selection ( editor quot -- )
-    '[ gadget-selection @ ] keep user-input* drop ; inline
+    '[ gadget-selection @ ] [ user-input* drop ] bi ; inline
+
+<PRIVATE
 
 : join-lines ( string -- string' )
     "\n" split
-    [ rest-slice [ [ blank? ] trim-head-slice ] change-each ]
-    [ but-last-slice [ [ blank? ] trim-tail-slice ] change-each ]
+    [ rest-slice [ [ blank? ] trim-head-slice ] map! drop ]
+    [ but-last-slice [ [ blank? ] trim-tail-slice ] map! drop ]
     [ " " join ]
     tri ;
-
-: this-line-and-next ( document line -- start end )
-    [ nip 0 swap 2array ]
-    [ [ nip 1 + ] [ 1 + swap doc-line length ] 2bi 2array ]
-    2bi ;
 
 : last-line? ( document line -- ? )
     [ last-line# ] dip = ;
 
+: prev-line-and-this ( document line -- start end )
+    swap
+    [ drop 1 - 0 2array ]
+    [ [ drop ] [ doc-line length ] 2bi 2array ]
+    2bi ;
+
+: join-with-prev ( document line -- )
+    [ prev-line-and-this ] [ drop ] 2bi
+    [ join-lines ] change-doc-range ;
+
+: this-line-and-next ( document line -- start end )
+    swap
+    [ drop 0 2array ]
+    [ [ 1 + ] dip [ drop ] [ doc-line length ] 2bi 2array ]
+    2bi ;
+
+: join-with-next ( document line -- )
+    [ this-line-and-next ] [ drop ] 2bi
+    [ join-lines ] change-doc-range ;
+
+PRIVATE>
+
 : com-join-lines ( editor -- )
     dup gadget-selection?
     [ [ join-lines ] change-selection ] [
-        [ model>> ] [ editor-caret first ] bi
-        2dup last-line? [ 2drop ] [
-            [ this-line-and-next ] [ drop ] 2bi
-            [ join-lines ] change-doc-range
-        ] if
+        [ model>> ] [ editor-caret first ] bi {
+            { [ over last-line# 0 = ] [ 2drop ] }
+            { [ 2dup last-line? ] [ join-with-prev ] }
+            [ join-with-next ]
+        } cond
     ] if ;
 
 multiline-editor "multiline" f {
@@ -570,6 +601,8 @@ TUPLE: source-editor < multiline-editor ;
 ! Fields wrap an editor
 TUPLE: field < border editor min-cols max-cols ;
 
+<PRIVATE
+
 : field-theme ( gadget -- gadget )
     { 2 2 } >>size
     { 1 0 } >>fill
@@ -580,6 +613,8 @@ TUPLE: field < border editor min-cols max-cols ;
         { 1 0 } >>fill
         field-theme ;
 
+PRIVATE>
+
 : new-field ( class -- gadget )
     [ <editor> ] dip new-border
         dup gadget-child >>editor
@@ -589,15 +624,16 @@ TUPLE: field < border editor min-cols max-cols ;
 M: field font>> editor>> font>> ;
 
 M: field pref-dim*
-    dup
-    [ editor>> pref-dim ] keep
-    [ line-gadget-width ] [ drop second ] 2bi 2array
-    border-pref-dim ;
+    [ ]
+    [ editor>> pref-dim ]
+    [ [ line-gadget-width ] [ drop second ] 2bi 2array ]
+    tri border-pref-dim ;
 
 TUPLE: model-field < field field-model ;
 
 : <model-field> ( model -- gadget )
-    model-field new-field swap >>field-model ;
+    model-field new-field
+        swap >>field-model ;
 
 M: model-field graft*
     [ [ field-model>> value>> ] [ editor>> ] bi set-editor-string ]
@@ -613,7 +649,8 @@ M: model-field model-changed
 TUPLE: action-field < field quot ;
 
 : <action-field> ( quot -- gadget )
-    action-field new-field swap >>quot ;
+    action-field new-field
+        swap >>quot ;
 
 : invoke-action-field ( field -- )
     [ editor>> editor-string ]

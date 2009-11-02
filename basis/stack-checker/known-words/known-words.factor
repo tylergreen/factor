@@ -1,18 +1,18 @@
 ! Copyright (C) 2004, 2009 Slava Pestov, Daniel Ehrenberg.
 ! See http://factorcode.org/license.txt for BSD license.
-USING: fry accessors alien alien.accessors arrays byte-arrays classes
-continuations.private effects generic hashtables
+USING: fry accessors alien alien.accessors arrays byte-arrays
+classes continuations.private effects generic hashtables
 hashtables.private io io.backend io.files io.files.private
 io.streams.c kernel kernel.private math math.private
 math.parser.private memory memory.private namespaces
 namespaces.private parser quotations quotations.private sbufs
 sbufs.private sequences sequences.private slots.private strings
 strings.private system threads.private classes.tuple
-classes.tuple.private vectors vectors.private words definitions assocs
-summary compiler.units system.private combinators
-combinators.short-circuit locals locals.backend locals.types
-combinators.private stack-checker.values
-generic.single generic.single.private
+classes.tuple.private vectors vectors.private words
+words.private definitions assocs summary compiler.units
+system.private combinators combinators.short-circuit locals
+locals.backend locals.types combinators.private
+stack-checker.values generic.single generic.single.private
 alien.libraries
 stack-checker.alien
 stack-checker.state
@@ -192,17 +192,17 @@ M: bad-executable summary
 
 \ load-local [ infer-load-local ] "special" set-word-prop
 
-: infer-get-local ( -- )
-    [let* | n [ pop-literal nip 1 swap - ]
-            in-r [ n consume-r ]
-            out-d [ in-r first copy-value 1array ]
-            out-r [ in-r copy-values ] |
-         out-d output-d
-         out-r output-r
-         f out-d in-r out-r
-         out-r in-r zip out-d first in-r first 2array suffix
-         #shuffle,
-    ] ;
+:: infer-get-local ( -- )
+    pop-literal nip 1 swap - :> n
+    n consume-r :> in-r
+    in-r first copy-value 1array :> out-d
+    in-r copy-values :> out-r
+
+    out-d output-d
+    out-r output-r
+    f out-d in-r out-r
+    out-r in-r zip out-d first in-r first 2array suffix
+    #shuffle, ;
 
 \ get-local [ infer-get-local ] "special" set-word-prop
 
@@ -482,8 +482,8 @@ M: bad-executable summary
 \ float-u>= { float float } { object } define-primitive
 \ float-u>= make-foldable
 
-\ <word> { object object } { word } define-primitive
-\ <word> make-flushable
+\ (word) { object object object } { word } define-primitive
+\ (word) make-flushable
 
 \ word-xt { word } { integer integer } define-primitive
 \ word-xt make-flushable
@@ -495,7 +495,11 @@ M: bad-executable summary
 
 \ (exists?) { string } { object } define-primitive
 
+\ minor-gc { } { } define-primitive
+
 \ gc { } { } define-primitive
+
+\ compact-gc { } { } define-primitive
 
 \ gc-stats { } { array } define-primitive
 
@@ -711,3 +715,7 @@ M: bad-executable summary
 \ inline-cache-stats { } { array } define-primitive
 
 \ optimized? { word } { object } define-primitive
+
+\ strip-stack-traces { } { } define-primitive
+
+\ <callback> { word } { alien } define-primitive

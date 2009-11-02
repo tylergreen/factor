@@ -1,7 +1,7 @@
 ! Copyright (C) 2003, 2009 Slava Pestov.
 ! See http://factorcode.org/license.txt for BSD license.
-USING: hashtables generic kernel math namespaces make sequences
-continuations destructors assocs combinators ;
+USING: accessors combinators continuations destructors kernel
+math namespaces sequences ;
 IN: io
 
 SYMBOLS: +byte+ +character+ ;
@@ -23,9 +23,24 @@ ERROR: bad-seek-type type ;
 
 SINGLETONS: seek-absolute seek-relative seek-end ;
 
+GENERIC: stream-tell ( stream -- n )
 GENERIC: stream-seek ( n seek-type stream -- )
 
-: stream-print ( str stream -- ) [ stream-write ] keep stream-nl ;
+<PRIVATE
+
+SLOT: i
+
+: (stream-seek) ( n seek-type stream -- )
+    swap {
+        { seek-absolute [ (>>i) ] }
+        { seek-relative [ [ + ] change-i drop ] }
+        { seek-end [ [ underlying>> length + ] [ (>>i) ] bi ] }
+        [ bad-seek-type ]
+    } case ;
+
+PRIVATE>
+
+: stream-print ( str stream -- ) [ stream-write ] [ stream-nl ] bi ;
 
 ! Default streams
 SYMBOL: input-stream
@@ -37,6 +52,8 @@ SYMBOL: error-stream
 : read ( n -- seq ) input-stream get stream-read ;
 : read-until ( seps -- seq sep/f ) input-stream get stream-read-until ;
 : read-partial ( n -- seq ) input-stream get stream-read-partial ;
+: tell-input ( -- n ) input-stream get stream-tell ;
+: tell-output ( -- n ) output-stream get stream-tell ;
 : seek-input ( n seek-type -- ) input-stream get stream-seek ;
 : seek-output ( n seek-type -- ) output-stream get stream-seek ;
 
@@ -70,42 +87,51 @@ SYMBOL: error-stream
 
 : bl ( -- ) " " write ;
 
-<PRIVATE
-
 : each-morsel ( handler: ( data -- ) reader: ( -- data ) -- )
     [ dup ] compose swap while drop ; inline
 
-: stream-element-exemplar ( type -- exemplar )
+<PRIVATE
+
+: (stream-element-exemplar) ( type -- exemplar )
     {
         { +byte+ [ B{ } ] }
         { +character+ [ "" ] }
-    } case ;
+    } case ; inline
+
+: stream-element-exemplar ( stream -- exemplar )
+    stream-element-type (stream-element-exemplar) ;
 
 : element-exemplar ( -- exemplar )
-    input-stream get
-    stream-element-type
-    stream-element-exemplar ;
+    input-stream get stream-element-exemplar ; inline
 
 PRIVATE>
 
-: each-line ( quot -- )
-    [ readln ] each-morsel ; inline
+: each-stream-line ( stream quot -- )
+    swap [ stream-readln ] curry each-morsel ; inline
 
-: lines ( -- seq )
-    [ ] accumulator [ each-line ] dip { } like ;
+: each-line ( quot -- )
+    input-stream get swap each-stream-line ; inline
 
 : stream-lines ( stream -- seq )
-    [ lines ] with-input-stream ;
+    [ [ ] accumulator [ each-stream-line ] dip { } like ] with-disposal ;
 
-: contents ( -- seq )
-    [ 65536 read-partial dup ] [ ] produce nip
-    element-exemplar concat-as ;
+: lines ( -- seq )
+    input-stream get stream-lines ; inline
 
 : stream-contents ( stream -- seq )
-    [ contents ] with-input-stream ;
+    [
+        [ [ 65536 swap stream-read-partial dup ] curry [ ] produce nip ]
+        [ stream-element-exemplar concat-as ] bi
+    ] with-disposal ;
+
+: contents ( -- seq )
+    input-stream get stream-contents ; inline
+
+: each-stream-block ( stream quot: ( block -- ) -- )
+    swap [ 8192 swap stream-read-partial ] curry each-morsel ; inline
 
 : each-block ( quot: ( block -- ) -- )
-    [ 8192 read-partial ] each-morsel ; inline
+    input-stream get swap each-stream-block ; inline
 
 : stream-copy ( in out -- )
     [ [ [ write ] each-block ] with-output-stream ]

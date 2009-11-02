@@ -85,7 +85,7 @@ M: gadget contains-point? ( loc gadget -- ? )
 : pick-up ( point gadget -- child/f )
     2dup [ dup point>rect ] dip children-on
     [ contains-point? ] with find-last nip
-    [ [ loc>> v- ] keep pick-up ] [ nip ] ?if ;
+    [ [ loc>> v- ] [ pick-up ] bi ] [ nip ] ?if ;
 
 : max-dim ( dims -- dim ) { 0 0 } [ vmax ] reduce ;
 
@@ -183,7 +183,7 @@ GENERIC: pref-dim* ( gadget -- dim )
 
 : pref-dim ( gadget -- dim )
     dup pref-dim>> [ ] [
-        [ pref-dim* ] keep dup layout-state>>
+        [ pref-dim* ] [ ] [ layout-state>> ] tri
         [ drop ] [ dupd (>>pref-dim) ] if
     ] ?if ;
 
@@ -267,7 +267,7 @@ M: gadget ungraft* drop ;
 
 : notify ( gadget -- )
     dup graft-state>>
-    [ first { f f } { t t } ? >>graft-state ] keep
+    [ first { f f } { t t } ? >>graft-state ] [ ] bi
     {
         { { f t } [ dup activate-control graft* ] }
         { { t f } [ dup deactivate-control ungraft* ] }
@@ -306,7 +306,7 @@ M: gadget remove-gadget 2drop ;
             [ remove-gadget ] [
                 over (unparent)
                 [ unfocus-gadget ]
-                [ children>> delete ]
+                [ children>> remove! drop ]
                 [ nip relayout ]
                 2tri
             ] 2bi

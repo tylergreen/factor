@@ -5,11 +5,15 @@ ABOUT: "io.streams.byte-array"
 
 ARTICLE: "io.streams.byte-array" "Byte-array streams"
 "Byte array streams:"
-{ $subsection <byte-reader> }
-{ $subsection <byte-writer> }
+{ $subsections
+    <byte-reader>
+    <byte-writer>
+}
 "Utility combinators:"
-{ $subsection with-byte-reader }
-{ $subsection with-byte-writer } ;
+{ $subsections
+    with-byte-reader
+    with-byte-writer
+} ;
 
 HELP: <byte-reader>
 { $values { "byte-array" byte-array }
@@ -23,8 +27,9 @@ HELP: <byte-writer>
 { $description "Creates an output stream writing data to a byte array using an encoding." } ;
 
 HELP: with-byte-reader
-{ $values { "encoding" "an encoding descriptor" }
-    { "quot" quotation } { "byte-array" byte-array } }
+{ $values { "byte-array" byte-array }
+    { "encoding" "an encoding descriptor" }
+    { "quot" quotation } }
 { $description "Calls the quotation in a new dynamic scope with " { $link input-stream } " rebound to an input stream for reading from a byte array using an encoding." } ;
 
 HELP: with-byte-writer

@@ -30,20 +30,22 @@ HELP: flatten
 { $values { "obj" object } { "seq" "a sequence" } }
 { $description "Creates a sequence of all of the leaf nodes (non-sequence nodes, but including strings and numbers) in the object." } ;
 
-HELP: deep-change-each
-{ $values { "obj" object } { "quot" { $quotation "( elt -- newelt )" } } }
-{ $description "Modifies each sub-node of an object in place, in preorder." }
-{ $see-also change-each } ;
+HELP: deep-map!
+{ $values { "obj" object } { "quot" { $quotation "( elt -- newelt )" } } { "obj" object } }
+{ $description "Modifies each sub-node of an object in place, in preorder, and returns that object." }
+{ $see-also map! } ;
 
 ARTICLE: "sequences.deep" "Deep sequence combinators"
 "The combinators in the " { $vocab-link "sequences.deep" } " vocabulary are variants of standard sequence combinators which traverse nested subsequences."
-{ $subsection deep-each }
-{ $subsection deep-map }
-{ $subsection deep-filter }
-{ $subsection deep-find }
-{ $subsection deep-any? }
-{ $subsection deep-change-each }
+{ $subsections
+    deep-each
+    deep-map
+    deep-filter
+    deep-find
+    deep-any?
+    deep-map!
+}
 "A utility word to collapse nested subsequences:"
-{ $subsection flatten } ;
+{ $subsections flatten } ;
 
 ABOUT: "sequences.deep"

@@ -50,6 +50,11 @@ HELP: firstn
     }
 } ;
 
+HELP: set-firstn
+{ $values { "n" integer } }
+{ $description "A generalization of " { $link set-first } " "
+"that sets the first " { $snippet "n" } " elements of a sequence from the top " { $snippet "n" } " elements of the stack." } ;
+
 HELP: npick
 { $values { "n" integer } }
 { $description "A generalization of " { $link dup } ", "
@@ -83,6 +88,11 @@ HELP: ndup
         { { $link 3dup } { $snippet "3 ndup" } }
     }
 } ;
+
+HELP: dupn
+{ $values { "n" integer } }
+{ $description "Calls " { $link dup } " enough times that " { $snippet "n" } " references to the element at the top of the stack before " { $snippet "dupn" } " is called are on the top of the stack." }
+{ $notes { $snippet "2 dupn" } " is equivalent to " { $link dup } ". " { $snippet "1 dupn" } " is a no-op. " { $snippet "0 dupn" } " is equivalent to " { $link drop } "." } ;
 
 HELP: nnip
 { $values { "n" integer } }
@@ -144,7 +154,7 @@ HELP: -nrot
 } ;
 
 HELP: ndip
-{ $values { "quot" quotation } { "n" integer } }
+{ $values { "n" integer } }
 { $description "A generalization of " { $link dip } " that can work " 
 "for any stack depth. The quotation will be called with a stack that "
 "has 'n' items removed first. The 'n' items are then put back on the "
@@ -162,7 +172,7 @@ HELP: ndip
 } ;
 
 HELP: nkeep
-{ $values { "quot" quotation } { "n" integer } }
+{ $values { "n" integer } }
 { $description "A generalization of " { $link keep } " that can work " 
 "for any stack depth. The first " { $snippet "n" } " items after the quotation will be "
 "saved, the quotation called, and the items restored."
@@ -202,7 +212,7 @@ HELP: nwith
 } ;
 
 HELP: napply
-{ $values { "quot" quotation } { "n" integer } }
+{ $values { "n" integer } }
 { $description "A generalization of " { $link bi@ } " and " { $link tri@ } " that can work for any stack depth."
 } 
 { $examples
@@ -231,6 +241,31 @@ HELP: nspread
 { $description "A generalization of " { $link spread } " that can work for any quotation arity."
 } ;
 
+HELP: cleave*
+{ $values { "n" integer } }
+{ $description "Like " { $link cleave } ", but instead of taking a single array of quotations, cleaves using quotations taken from the top " { $snippet "n" } " elements of the datastack." }
+{ $notes "This word can be used with " { $link apply-curry } " to generalize the " { $snippet "bi-curry@ bi" } " or " { $snippet "tri-curry@ tri" } " dataflow patterns." } ;
+
+HELP: spread*
+{ $values { "n" integer } }
+{ $description "Like " { $link spread } ", but instead of taking a single array of quotations, spreads using quotations taken from the top " { $snippet "n" } " elements of the datastack." }
+{ $notes "This word can be used with " { $link apply-curry } " to generalize the " { $snippet "bi-curry@ bi*" } " or " { $snippet "tri-curry@ tri*" } " dataflow patterns." } ;
+
+HELP: apply-curry
+{ $values { "...a" { $snippet "n" } " values on the datastack" } { "quot" quotation } { "n" integer } }
+{ $description "Curries each of the top " { $snippet "n" } " items of the datastack onto " { $snippet "quot" } ", leaving " { $snippet "n" } " quotations on the datastack. A generalization of " { $link bi-curry@ } " and " { $link tri-curry@ } "." }
+{ $notes "This word can be used with " { $link cleave* } " and " { $link spread* } " to generalize dataflow patterns such as " { $snippet "bi-curry@ bi" } ", " { $snippet "tri-curry@ tri" } ", " { $snippet "bi-curry@ bi*" } ", and " { $snippet "tri-curry@ tri*" } "." } ;
+
+HELP: cleave-curry
+{ $values { "a" object } { "...quot" { $snippet "n" } " quotations on the datastack" } { "n" integer } }
+{ $description "Curries " { $snippet "a" } " onto the " { $snippet "n" } " quotations on the top of the datastack. A generalization of " { $link bi-curry } " and " { $link tri-curry } "." }
+{ $notes "This word can be used with " { $link cleave* } " and " { $link spread* } " to generalize dataflow patterns such as " { $snippet "bi-curry bi" } ", " { $snippet "tri-curry tri" } ", " { $snippet "bi-curry bi*" } ", and " { $snippet "tri-curry tri*" } "." } ;
+
+HELP: spread-curry
+{ $values { "...a" { $snippet "n" } " objects on the datastack" } { "...quot" { $snippet "n" } " quotations on the datastack" } { "n" integer } }
+{ $description "Curries the " { $snippet "n" } " quotations on the top of the datastack with the " { $snippet "n" } " values just below them. A generalization of " { $link bi-curry* } " and " { $link tri-curry* } "." }
+{ $notes "This word can be used with " { $link cleave* } " and " { $link spread* } " to generalize dataflow patterns such as " { $snippet "bi-curry* bi" } ", " { $snippet "tri-curry* tri" } ", " { $snippet "bi-curry* bi*" } ", and " { $snippet "tri-curry* tri*" } "." } ;
+
 HELP: mnswap
 { $values { "m" integer } { "n" integer } }
 { $description "Swaps the top " { $snippet "m" } " stack elements with the " { $snippet "n" } " elements directly underneath." }
@@ -257,7 +292,7 @@ HELP: nweave
 HELP: n*quot
 { $values
      { "n" integer } { "quot" quotation }
-     { "quot'" quotation }
+     { "quotquot" quotation }
 }
 { $examples
     { $example "USING: generalizations prettyprint math ;"
@@ -303,43 +338,68 @@ HELP: ntuck
 }
 { $description "A generalization of " { $link tuck } " that can work for any stack depth. The top item will be copied and placed " { $snippet "n" } " items down on the stack." } ;
 
+HELP: nspin
+{ $values
+    { "n" integer }
+}
+{ $description "A generalization of " { $link spin } " that can work for any stack depth. The top " { $snippet "n" } " items will be reversed in order." } ;
+
 ARTICLE: "sequence-generalizations" "Generalized sequence operations"
-{ $subsection narray }
-{ $subsection nsequence }
-{ $subsection firstn }
-{ $subsection nappend }
-{ $subsection nappend-as } ;
+{ $subsections
+    narray
+    nsequence
+    firstn
+    set-firstn
+    nappend
+    nappend-as
+} ;
 
 ARTICLE: "shuffle-generalizations" "Generalized shuffle words"
-{ $subsection ndup }
-{ $subsection npick }
-{ $subsection nrot }
-{ $subsection -nrot }
-{ $subsection nnip }
-{ $subsection ndrop }
-{ $subsection ntuck }
-{ $subsection mnswap }
-{ $subsection nweave } ;
+{ $subsections
+    ndup
+    dupn
+    npick
+    nrot
+    -nrot
+    nnip
+    ndrop
+    ntuck
+    nspin
+    mnswap
+    nweave
+} ;
 
 ARTICLE: "combinator-generalizations" "Generalized combinators"
-{ $subsection ndip }
-{ $subsection nkeep }
-{ $subsection napply }
-{ $subsection ncleave }
-{ $subsection nspread } ;
+{ $subsections
+    ndip
+    nkeep
+    napply
+    ncleave
+    nspread
+    cleave*
+    spread*
+    apply-curry
+    cleave-curry
+    spread-curry
+} ;
 
 ARTICLE: "other-generalizations" "Additional generalizations"
-{ $subsection ncurry } 
-{ $subsection nwith }
-{ $subsection nsum } ;
+{ $subsections
+    ncurry
+    nwith
+    nsum
+} ;
 
 ARTICLE: "generalizations" "Generalized shuffle words and combinators"
 "The " { $vocab-link "generalizations" } " vocabulary defines a number of stack shuffling words and combinators for use in "
 "macros where the arity of the input quotations depends on an "
 "input parameter."
-{ $subsection "sequence-generalizations" }
-{ $subsection "shuffle-generalizations" }
-{ $subsection "combinator-generalizations" }
-{ $subsection "other-generalizations" } ;
+{ $subsections
+    "sequence-generalizations"
+    "shuffle-generalizations"
+    "combinator-generalizations"
+    "other-generalizations"
+}
+"Also see the " { $vocab-link "sequences.generalizations" } " vocabulary for generalized sequence iteration combinators." ;
 
 ABOUT: "generalizations"

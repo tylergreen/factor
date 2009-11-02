@@ -10,36 +10,6 @@ IN: help.handbook
 
 ARTICLE: "conventions" "Conventions"
 "Various conventions are used throughout the Factor documentation and source code."
-{ $heading "Documentation conventions" }
-"Factor documentation consists of two distinct bodies of text. There is a hierarchy of articles, much like this one, and there is word documentation. Help articles reference word documentation, and vice versa, but not every documented word is referenced from some help article."
-$nl
-"Every article has links to parent articles at the top. Explore these if the article you are reading is too specific."
-$nl
-"Some generic words have " { $strong "Description" } " headings, and others have " { $strong "Contract" } " headings. A distinction is made between words which are not intended to be extended with user-defined methods, and those that are."
-{ $heading "Vocabulary naming conventions" }
-"A vocabulary name ending in " { $snippet ".private" } " contains words which are either implementation detail, unsafe, or both. For example, the " { $snippet "sequence.private" } " vocabulary contains words which access sequence elements without bounds checking (" { $link "sequences-unsafe" } ")."
-$nl
-"You should avoid using internal words from the Factor library unless absolutely necessary. Similarly, your own code can place words in internal vocabularies if you do not want other people to use them unless they have a good reason."
-{ $heading "Word naming conventions" }
-"These conventions are not hard and fast, but are usually a good first step in understanding a word's behavior:"
-{ $table
-    { "General form" "Description" "Examples" }
-    { { $snippet { $emphasis "foo" } "?" } "outputs a boolean" { { $link empty? } } }
-    { { $snippet "?" { $emphasis "foo" } } { "conditionally performs " { $snippet { $emphasis "foo" } } } { { $links ?nth } } }
-    { { $snippet "<" { $emphasis "foo" } ">" } { "creates a new " { $snippet "foo" } } { { $link <array> } } }
-    { { $snippet ">" { $emphasis "foo" } } { "converts the top of the stack into a " { $snippet "foo" } } { { $link >array } } }
-    { { $snippet { $emphasis "foo" } ">" { $emphasis "bar" } } { "converts a " { $snippet "foo" } " into a " { $snippet "bar" } } { { $link number>string } } }
-    { { $snippet "new-" { $emphasis "foo" } } { "creates a new " { $snippet "foo" } ", taking some kind of parameter from the stack which determines the type of the object to be created" } { { $link new-sequence } ", " { $link new-lexer } ", " { $link new } } }
-    { { $snippet { $emphasis "foo" } "*" } { "alternative form of " { $snippet "foo" } ", or a generic word called by " { $snippet "foo" } } { { $links at* pprint* } } }
-    { { $snippet "(" { $emphasis "foo" } ")" } { "implementation detail word used by " { $snippet "foo" } } { { $link (clone) } } }
-    { { $snippet "set-" { $emphasis "foo" } } { "sets " { $snippet "foo" } " to a new value" } { $links set-length } }
-    { { $snippet { $emphasis "foo" } ">>" } { "gets the " { $snippet "foo" } " slot of the tuple at the top of the stack; see " { $link "accessors" } } { { $link name>> } } }
-    { { $snippet ">>" { $emphasis "foo" } } { "sets the " { $snippet "foo" } " slot of the tuple at the top of the stack; see " { $link "accessors" } } { { $link >>name } } }
-    { { $snippet "with-" { $emphasis "foo" } } { "performs some kind of initialization and cleanup related to " { $snippet "foo" } ", usually in a new dynamic scope" } { $links with-scope with-input-stream with-output-stream } }
-    { { $snippet "$" { $emphasis "foo" } } { "help markup" } { $links $heading $emphasis } }
-}
-{ $heading "Stack effect conventions" }
-"Stack effect conventions are documented in " { $link "effects" } "."
 { $heading "Glossary of terms" }
 "Common terminology and abbreviations used throughout Factor and its documentation:"
 { $table
@@ -62,10 +32,41 @@ $nl
     { "slot"                  { "a component of an object which can store a value" } }
     { "stack effect"          { "a pictorial representation of a word's inputs and outputs, for example " { $snippet "+ ( x y -- z )" } ". See " { $link "effects" } } }
     { "true value"            { "any object not equal to " { $link f } } }
-    { "vocabulary" { "a named set of words. See " { $link "vocabularies" } } }
+    { { "vocabulary " { $strong "or" } " vocab" } { "a named set of words. See " { $link "vocabularies" } } }
     { "vocabulary specifier"  { "a " { $link vocab } ", " { $link vocab-link } " or a string naming a vocabulary" } }
     { "word"                  { "the basic unit of code, analogous to a function or procedure in other programming languages. See " { $link "words" } } }
-} ;
+} 
+{ $heading "Documentation conventions" }
+"Factor documentation consists of two distinct bodies of text. There is a hierarchy of articles, much like this one, and there is word documentation. Help articles reference word documentation, and vice versa, but not every documented word is referenced from some help article."
+$nl
+"The browser, completion popups and other tools use a common set of " { $link "definitions.icons" } "."
+$nl
+"Every article has links to parent articles at the top. Explore these if the article you are reading is too specific."
+$nl
+"Some generic words have " { $strong "Description" } " headings, and others have " { $strong "Contract" } " headings. A distinction is made between words which are not intended to be extended with user-defined methods, and those that are."
+{ $heading "Vocabulary naming conventions" }
+"A vocabulary name ending in " { $snippet ".private" } " contains words which are either implementation details, unsafe, or both. For example, the " { $snippet "sequence.private" } " vocabulary contains words which access sequence elements without bounds checking (" { $link "sequences-unsafe" } "). You should avoid using private words from the Factor library unless absolutely necessary. Similarly, your own code can place words in private vocabularies using " { $link POSTPONE: <PRIVATE } " if you do not want other people using them without good reason."
+{ $heading "Word naming conventions" }
+"These conventions are not hard and fast, but are usually a good first step in understanding a word's behavior:"
+{ $table
+    { "General form" "Description" "Examples" }
+    { { $snippet { $emphasis "foo" } "?" } "outputs a boolean" { { $link empty? } } }
+    { { $snippet "?" { $emphasis "foo" } } { "conditionally performs " { $snippet { $emphasis "foo" } } } { { $links ?nth } } }
+    { { $snippet "<" { $emphasis "foo" } ">" } { "creates a new " { $snippet "foo" } } { { $link <array> } } }
+    { { $snippet ">" { $emphasis "foo" } } { "converts the top of the stack into a " { $snippet "foo" } } { { $link >array } } }
+    { { $snippet { $emphasis "foo" } ">" { $emphasis "bar" } } { "converts a " { $snippet "foo" } " into a " { $snippet "bar" } } { { $link number>string } } }
+    { { $snippet "new-" { $emphasis "foo" } } { "creates a new " { $snippet "foo" } ", taking some kind of parameter from the stack which determines the type of the object to be created" } { { $link new-sequence } ", " { $link new-lexer } ", " { $link new } } }
+    { { $snippet { $emphasis "foo" } "*" } { "alternative form of " { $snippet "foo" } ", or a generic word called by " { $snippet "foo" } } { { $links at* pprint* } } }
+    { { $snippet "(" { $emphasis "foo" } ")" } { "implementation detail word used by " { $snippet "foo" } } { { $link (clone) } } }
+    { { $snippet "set-" { $emphasis "foo" } } { "sets " { $snippet "foo" } " to a new value" } { $links set-length } }
+    { { $snippet { $emphasis "foo" } ">>" } { "gets the " { $snippet "foo" } " slot of the tuple at the top of the stack; see " { $link "accessors" } } { { $link name>> } } }
+    { { $snippet ">>" { $emphasis "foo" } } { "sets the " { $snippet "foo" } " slot of the tuple at the top of the stack; see " { $link "accessors" } } { { $link >>name } } }
+    { { $snippet "with-" { $emphasis "foo" } } { "performs some kind of initialization and cleanup related to " { $snippet "foo" } ", usually in a new dynamic scope" } { $links with-scope with-input-stream with-output-stream } }
+    { { $snippet "$" { $emphasis "foo" } } { "help markup" } { $links $heading $emphasis } }
+}
+{ $heading "Stack effect conventions" }
+"Stack effect conventions are documented in " { $link "effects" } "."
+;
 
 ARTICLE: "tail-call-opt" "Tail-call optimization"
 "If the last action performed is the execution of a word, the current quotation is not saved on the call stack; this is known as " { $emphasis "tail-call optimization" } " and the Factor implementation guarantees that it will be performed."
@@ -79,75 +80,99 @@ ARTICLE: "evaluator" "Stack machine model"
     { "a " { $link wrapper } " - the wrapped object is pushed on the data stack. Wrappers are used to push word objects directly on the stack when they would otherwise execute. See the " { $link POSTPONE: \ } " parsing word." }
     { "All other types of objects are pushed on the data stack." }
 }
-{ $subsection "tail-call-opt" }
+{ $subsections "tail-call-opt" }
 { $see-also "compiler" } ;
 
 ARTICLE: "objects" "Objects"
 "An " { $emphasis "object" } " is any datum which may be identified. All values are objects in Factor. Each object carries type information, and types are checked at runtime; Factor is dynamically typed."
-{ $subsection "equality" }
-{ $subsection "math.order" }
-{ $subsection "classes" }
-{ $subsection "tuples" }
-{ $subsection "generic" }
+{ $subsections
+    "equality"
+    "math.order"
+    "classes"
+    "tuples"
+    "generic"
+}
 "Advanced features:"
-{ $subsection "delegate" }
-{ $subsection "mirrors" }
-{ $subsection "slots" } ;
+{ $subsections
+    "delegate"
+    "mirrors"
+    "slots"
+} ;
 
 ARTICLE: "numbers" "Numbers"
-{ $subsection "arithmetic" }
-{ $subsection "math-constants" }
-{ $subsection "math-functions" }
-{ $subsection "number-strings" }
+{ $subsections
+    "arithmetic"
+    "math-constants"
+    "math-functions"
+    "number-strings"
+}
 "Number implementations:"
-{ $subsection "integers" }
-{ $subsection "rationals" }
-{ $subsection "floats" }
-{ $subsection "complex-numbers" }
+{ $subsections
+    "integers"
+    "rationals"
+    "floats"
+    "complex-numbers"
+}
 "Advanced features:"
-{ $subsection "math-vectors" }
-{ $subsection "math-intervals" } ;
+{ $subsections
+    "math-vectors"
+    "math-intervals"
+} ;
 
 USE: io.buffers
 
 ARTICLE: "collections" "Collections" 
 { $heading "Sequences" }
-{ $subsection "sequences" }
-{ $subsection "virtual-sequences" }
-{ $subsection "namespaces-make" }
+{ $subsections
+    "sequences"
+    "virtual-sequences"
+    "namespaces-make"
+}
 "Fixed-length sequences:"
-{ $subsection "arrays" }
-{ $subsection "quotations" }
-{ $subsection "strings" }
-{ $subsection "byte-arrays" }
-{ $subsection "specialized-arrays" }
+{ $subsections
+    "arrays"
+    "quotations"
+    "strings"
+    "byte-arrays"
+    "specialized-arrays"
+}
 "Resizable sequences:"
-{ $subsection "vectors" }
-{ $subsection "byte-vectors" }
-{ $subsection "sbufs" }
-{ $subsection "growable" }
+{ $subsections
+    "vectors"
+    "byte-vectors"
+    "sbufs"
+    "growable"
+}
 { $heading "Associative mappings" }
-{ $subsection "assocs" }
-{ $subsection "linked-assocs" }
-{ $subsection "biassocs" }
-{ $subsection "refs" }
+{ $subsections
+    "assocs"
+    "linked-assocs"
+    "biassocs"
+    "refs"
+}
 "Implementations:"
-{ $subsection "hashtables" }
-{ $subsection "alists" }
-{ $subsection "enums" }
+{ $subsections
+    "hashtables"
+    "alists"
+    "enums"
+}
 { $heading "Double-ended queues" }
-{ $subsection "deques" }
+{ $subsections "deques" }
 "Implementations:"
-{ $subsection "dlists" }
-{ $subsection "search-deques" }
+{ $subsections
+    "dlists"
+    "search-deques"
+}
 { $heading "Other collections" }
-{ $subsection "lists" }
-{ $subsection "disjoint-sets" }
-{ $subsection "interval-maps" }
-{ $subsection "heaps" }
-{ $subsection "boxes" }
-{ $subsection "graphs" }
-{ $subsection "buffers" }
+{ $subsections
+    "lists"
+    "disjoint-sets"
+    "interval-maps"
+    "heaps"
+    "boxes"
+    "graphs"
+    "buffers"
+}
 "There are also many other vocabularies tagged " { $link T{ vocab-tag { name "collections" } } } " in the library." ;
 
 USING: io.encodings.utf8 io.encodings.binary io.files ;
@@ -170,28 +195,40 @@ $nl
 
 ARTICLE: "io" "Input and output"
 { $heading "Streams" }
-{ $subsection "streams" }
-{ $subsection "io.files" }
+{ $subsections
+    "streams"
+    "io.files"
+}
 { $heading "The file system" }
-{ $subsection "io.pathnames" }
-{ $subsection "io.files.info" }
-{ $subsection "io.files.links" }
-{ $subsection "io.directories" }
+{ $subsections
+    "io.pathnames"
+    "io.files.info"
+    "io.files.links"
+    "io.directories"
+}
 { $heading "Encodings" }
-{ $subsection "encodings-introduction" }
-{ $subsection "io.encodings" }
+{ $subsections
+    "encodings-introduction"
+    "io.encodings"
+}
 { $heading "Wrapper streams" }
-{ $subsection "io.streams.duplex" }
-{ $subsection "io.streams.plain" }
-{ $subsection "io.streams.string" }
-{ $subsection "io.streams.byte-array" }
+{ $subsections
+    "io.streams.duplex"
+    "io.streams.plain"
+    "io.streams.string"
+    "io.streams.byte-array"
+}
 { $heading "Utilities" }
-{ $subsection "stream-binary" }
-{ $subsection "io.styles" }
-{ $subsection "checksums" }
+{ $subsections
+    "stream-binary"
+    "io.styles"
+    "checksums"
+}
 { $heading "Implementation" }
-{ $subsection "io.streams.c" }
-{ $subsection "io.ports" }
+{ $subsections
+    "io.streams.c"
+    "io.ports"
+}
 { $see-also "destructors" } ;
 
 ARTICLE: "article-index" "Article index"
@@ -202,9 +239,6 @@ ARTICLE: "primitive-index" "Primitive index"
 
 ARTICLE: "error-index" "Error index"
 { $index [ all-errors ] } ;
-
-ARTICLE: "type-index" "Type index"
-{ $index [ builtins get sift ] } ;
 
 ARTICLE: "class-index" "Class index"
 { $heading "Built-in classes" }
@@ -224,107 +258,136 @@ USING: help.cookbook help.tutorial ;
 
 ARTICLE: "handbook-language-reference" "The language"
 { $heading "Fundamentals" }
-{ $subsection "conventions" }
-{ $subsection "syntax" }
+{ $subsections
+    "conventions"
+    "syntax"
+}
 { $heading "The stack" }
-{ $subsection "evaluator" }
-{ $subsection "effects" }
-{ $subsection "inference" }
+{ $subsections
+    "evaluator"
+    "effects"
+    "inference"
+}
 { $heading "Basic data types" }
-{ $subsection "booleans" }
-{ $subsection "numbers" }
-{ $subsection "collections" }
+{ $subsections
+    "booleans"
+    "numbers"
+    "collections"
+}
 { $heading "Evaluation" }
-{ $subsection "words" }
-{ $subsection "shuffle-words" }
-{ $subsection "combinators" }
-{ $subsection "threads" }
+{ $subsections
+    "words"
+    "shuffle-words"
+    "combinators"
+    "threads"
+}
 { $heading "Named values" }
-{ $subsection "locals" }
-{ $subsection "namespaces" }
-{ $subsection "namespaces-global" }
-{ $subsection "values" }
+{ $subsections
+    "locals"
+    "namespaces"
+    "namespaces-global"
+    "values"
+}
 { $heading "Abstractions" }
-{ $subsection "fry" }
-{ $subsection "objects" }
-{ $subsection "errors" }
-{ $subsection "destructors" }
-{ $subsection "memoize" }
-{ $subsection "parsing-words" }
-{ $subsection "macros" }
-{ $subsection "continuations" }
+{ $subsections
+    "fry"
+    "objects"
+    "errors"
+    "destructors"
+    "memoize"
+    "parsing-words"
+    "macros"
+    "continuations"
+}
 { $heading "Program organization" }
-{ $subsection "vocabs.loader" }
+{ $subsections "vocabs.loader" }
 "Vocabularies tagged " { $link T{ vocab-tag { name "extensions" } } } " implement various additional language abstractions." ;
 
 ARTICLE: "handbook-system-reference" "The implementation"
 { $heading "Parse time and compile time" }
-{ $subsection "parser" }
-{ $subsection "definitions" }
-{ $subsection "vocabularies" }
-{ $subsection "source-files" }
-{ $subsection "compiler" }
-{ $subsection "tools.errors" }
+{ $subsections
+    "parser"
+    "definitions"
+    "vocabularies"
+    "source-files"
+    "compiler"
+    "tools.errors"
+}
 { $heading "Virtual machine" }
-{ $subsection "images" }
-{ $subsection "cli" }
-{ $subsection "rc-files" }
-{ $subsection "init" }
-{ $subsection "system" }
-{ $subsection "layouts" } ;
+{ $subsections
+    "images"
+    "cli"
+    "rc-files"
+    "init"
+    "system"
+    "layouts"
+} ;
 
 ARTICLE: "handbook-tools-reference" "Developer tools"
 "The below tools are text-based. " { $link "ui-tools" } " are documented separately."
 { $heading "Workflow" }
-{ $subsection "listener" }
-{ $subsection "editor" }
-{ $subsection "vocabs.refresh" }
-{ $subsection "tools.test" }
-{ $subsection "help" }
+{ $subsections
+    "listener"
+    "editor"
+    "vocabs.refresh"
+    "tools.test"
+    "help"
+}
 { $heading "Debugging" }
-{ $subsection "prettyprint" }
-{ $subsection "inspector" }
-{ $subsection "tools.inference" }
-{ $subsection "tools.annotations" }
-{ $subsection "tools.deprecation" }
+{ $subsections
+    "prettyprint"
+    "inspector"
+    "tools.inference"
+    "tools.annotations"
+    "tools.deprecation"
+}
 { $heading "Browsing" }
-{ $subsection "see" }
-{ $subsection "tools.crossref" }
-{ $subsection "vocabs.hierarchy" }
+{ $subsections
+    "see"
+    "tools.crossref"
+    "vocabs.hierarchy"
+}
 { $heading "Performance" }
-{ $subsection "timing" }
-{ $subsection "profiling" }
-{ $subsection "tools.memory" }
-{ $subsection "tools.threads" }
-{ $subsection "tools.destructors" }
-{ $subsection "tools.disassembler" }
+{ $subsections
+    "timing"
+    "profiling"
+    "tools.memory"
+    "tools.threads"
+    "tools.destructors"
+    "tools.disassembler"
+}
 { $heading "Deployment" }
-{ $subsection "tools.deploy" } ;
+{ $subsections "tools.deploy" } ;
 
 ARTICLE: "handbook-library-reference" "Libraries"
 "This index lists articles from loaded vocabularies which are not subsections of any other article. To explore more vocabularies, see " { $link "vocab-index" } "."
 { $index [ orphan-articles { "help.home" "handbook" } diff ] } ;
 
 ARTICLE: "handbook" "Factor handbook"
-"Learn the language:"
-{ $subsection "cookbook" }
-{ $subsection "first-program" }
-"Reference material:"
-{ $subsection "handbook-language-reference" }
-{ $subsection "io" }
-{ $subsection "ui" }
-{ $subsection "handbook-system-reference" }
-{ $subsection "handbook-tools-reference" }
-{ $subsection "ui-tools" }
-{ $subsection "alien" }
-{ $subsection "handbook-library-reference" }
-"Explore loaded libraries:"
-{ $subsection "article-index" }
-{ $subsection "primitive-index" }
-{ $subsection "error-index" }
-{ $subsection "type-index" }
-{ $subsection "class-index" }
-"Explore the code base:"
-{ $subsection "vocab-index" } ;
+{ $heading "Getting started" }
+{ $subsections
+    "cookbook"
+    "first-program"
+}
+{ $heading "Reference" }
+{ $subsections
+    "handbook-language-reference"
+    "io"
+    "ui"
+    "handbook-system-reference"
+    "handbook-tools-reference"
+    "ui-tools"
+    "alien"
+    "handbook-library-reference"
+}
+{ $heading "Index" }
+{ $subsections
+  "vocab-index"
+  "article-index"
+  "primitive-index"
+  "error-index"
+  "class-index"
+}
+;
 
 ABOUT: "handbook"

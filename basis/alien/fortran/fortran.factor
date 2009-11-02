@@ -1,5 +1,5 @@
 ! (c) 2009 Joe Groff, see BSD license
-USING: accessors alien alien.c-types alien.complex alien.parser
+USING: accessors alien alien.c-types alien.complex alien.data grouping
 alien.strings alien.syntax arrays ascii assocs
 byte-arrays combinators combinators.short-circuit fry generalizations
 kernel lexer macros math math.parser namespaces parser sequences
@@ -205,9 +205,6 @@ M: fortran-type (fortran-ret-type>c-type) (fortran-type>c-type) ;
 M: real-type (fortran-ret-type>c-type)
     drop real-functions-return-double? [ "double" ] [ "float" ] if ;
 
-: suffix! ( seq   elt   -- seq   ) over push     ; inline
-: append! ( seq-a seq-b -- seq-a ) over push-all ; inline
-
 GENERIC: (fortran-arg>c-args) ( type -- main-quot added-quot )
 
 : args?dims ( type quot -- main-quot added-quot )
@@ -333,7 +330,7 @@ M: character-type (<fortran-result>)
     ] if-empty ;
 
 :: [fortran-invoke] ( [args>args] return library function parameters -- [args>args] quot ) 
-    return parameters fortran-sig>c-sig :> c-parameters :> c-return
+    return parameters fortran-sig>c-sig :> ( c-return c-parameters )
     function fortran-name>symbol-name :> c-function
     [args>args] 
     c-return library c-function c-parameters \ alien-invoke
@@ -428,6 +425,11 @@ PRIVATE>
 
 MACRO: fortran-invoke ( return library function parameters -- )
     { [ 2drop nip set-fortran-abi ] [ (fortran-invoke) ] } 4 ncleave ;
+
+: parse-arglist ( parameters return -- types effect )
+    [ 2 group unzip [ "," ?tail drop ] map ]
+    [ [ { } ] [ 1array ] if-void ]
+    bi* <effect> ;
 
 :: define-fortran-function ( return library function parameters -- )
     function create-in dup reset-generic 

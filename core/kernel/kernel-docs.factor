@@ -14,20 +14,19 @@ HELP: 3drop ( x y z -- )             $shuffle ;
 HELP: dup   ( x -- x x )             $shuffle ;
 HELP: 2dup  ( x y -- x y x y )       $shuffle ;
 HELP: 3dup  ( x y z -- x y z x y z ) $shuffle ;
-HELP: rot   ( x y z -- y z x )       $shuffle ;
-HELP: -rot  ( x y z -- z x y )       $shuffle ;
-HELP: dupd  ( x y -- x x y )         $shuffle ;
-HELP: swapd ( x y z -- y x z )       $shuffle ;
 HELP: nip   ( x y -- y )             $shuffle ;
 HELP: 2nip  ( x y z -- z )           $shuffle ;
-HELP: tuck  ( x y -- y x y )         $shuffle ;
 HELP: over  ( x y -- x y x )         $shuffle ;
 HELP: 2over                          $shuffle ;
 HELP: pick  ( x y z -- x y z x )     $shuffle ;
 HELP: swap  ( x y -- y x )           $shuffle ;
-HELP: spin                           $shuffle ;
-HELP: roll                           $shuffle ;
-HELP: -roll                          $shuffle ;
+
+HELP: spin                     $complex-shuffle ;
+HELP: rot   ( x y z -- y z x ) $complex-shuffle ;
+HELP: -rot  ( x y z -- z x y ) $complex-shuffle ;
+HELP: dupd  ( x y -- x x y )   $complex-shuffle ;
+HELP: swapd ( x y z -- y x z ) $complex-shuffle ;
+HELP: tuck  ( x y -- y x y )   $complex-shuffle ;
 
 HELP: datastack ( -- ds )
 { $values { "ds" array } }
@@ -168,7 +167,7 @@ HELP: xor
 { $notes "This word implements boolean exclusive or, so applying it to integers will not yield useful results (all integers have a true value). Bitwise exclusive or is the " { $link bitxor } " word." } ;
 
 HELP: both?
-{ $values { "quot" { $quotation "( obj -- ? )" } } { "x" object } { "y" object } { "?" "a boolean" } }
+{ $values { "x" object } { "y" object } { "quot" { $quotation "( obj -- ? )" } } { "?" "a boolean" } }
 { $description "Tests if the quotation yields a true value when applied to both " { $snippet "x" } " and " { $snippet "y" } "." }
 { $examples
     { $example "USING: kernel math prettyprint ;" "3 5 [ odd? ] both? ." "t" }
@@ -176,7 +175,7 @@ HELP: both?
 } ;
 
 HELP: either?
-{ $values { "quot" { $quotation "( obj -- ? )" } } { "x" object } { "y" object } { "?" "a boolean" } }
+{ $values { "x" object } { "y" object } { "quot" { $quotation "( obj -- ? )" } } { "?" "a boolean" } }
 { $description "Tests if the quotation yields a true value when applied to either " { $snippet "x" } " or " { $snippet "y" } "." }
 { $examples
     { $example "USING: kernel math prettyprint ;" "3 6 [ odd? ] either? ." "t" }
@@ -213,18 +212,18 @@ HELP: call-clear ( quot -- )
 { $notes "Used to implement " { $link "threads" } "." } ;
 
 HELP: keep
-{ $values { "quot" { $quotation "( x -- ... )" } } { "x" object } }
+{ $values { "x" object } { "quot" { $quotation "( x -- ... )" } } }
 { $description "Call a quotation with a value on the stack, restoring the value when the quotation returns." }
 { $examples
     { $example "USING: arrays kernel prettyprint ;" "2 \"greetings\" [ <array> ] keep 2array ." "{ { \"greetings\" \"greetings\" } \"greetings\" }" }
 } ;
 
 HELP: 2keep
-{ $values { "quot" { $quotation "( x y -- ... )" } } { "x" object } { "y" object } }
+{ $values { "x" object } { "y" object } { "quot" { $quotation "( x y -- ... )" } } }
 { $description "Call a quotation with two values on the stack, restoring the values when the quotation returns." } ;
 
 HELP: 3keep
-{ $values { "quot" { $quotation "( x y z -- ... )" } } { "x" object } { "y" object } { "z" object } }
+{ $values { "x" object } { "y" object } { "z" object } { "quot" { $quotation "( x y z -- ... )" } } }
 { $description "Call a quotation with three values on the stack, restoring the values when the quotation returns." } ;
 
 HELP: bi
@@ -278,11 +277,6 @@ HELP: 3bi
     { $code
         "[ p ] [ q ] 3bi"
         "3dup p q"
-    }
-    "If " { $snippet "[ p ]" } " and " { $snippet "[ q ]" } " have stack effect " { $snippet "( x y z -- w )" } ", then the following two lines are equivalent:"
-    { $code
-        "[ p ] [ q ] 3bi"
-        "3dup p -roll q"
     }
     "In general, the following two lines are equivalent:"
     { $code
@@ -664,7 +658,7 @@ HELP: getenv ( n -- obj )
 { $description "Reads an object from the Factor VM's environment table. User code never has to read the environment table directly; instead, use one of the callers of this word." } ;
 
 HELP: setenv ( obj n -- )
-{ $values { "n" "a non-negative integer" } { "obj" object } }
+{ $values { "obj" object } { "n" "a non-negative integer" } }
 { $description "Writes an object to the Factor VM's environment table. User code never has to write to the environment table directly; instead, use one of the callers of this word." } ;
 
 HELP: object
@@ -799,16 +793,18 @@ HELP: loop
 
 ARTICLE: "looping-combinators" "Looping combinators"
 "In most cases, loops should be written using high-level combinators (such as " { $link "sequences-combinators" } ") or tail recursion. However, sometimes, the best way to express intent is with a loop."
-{ $subsection while }
-{ $subsection until }
+{ $subsections
+    while
+    until
+}
 "To execute one iteration of a loop, use the following word:"
-{ $subsection do }
+{ $subsections do }
 "This word is intended as a modifier. The normal " { $link while } " loop never executes the body if the predicate returns false on the first iteration. To ensure the body executes at least once, use " { $link do } ":"
 { $code
     "[ P ] [ Q ] do while"
 }
 "A simpler looping combinator which executes a single quotation until it returns " { $link f } ":"
-{ $subsection loop } ;
+{ $subsections loop } ;
 
 HELP: assert
 { $values { "got" "the obtained value" } { "expect" "the expected value" } }
@@ -819,53 +815,71 @@ HELP: assert=
 { $values { "a" object } { "b" object } }
 { $description "Throws an " { $link assert } " error if " { $snippet "a" } " does not equal " { $snippet "b" } "." } ;
 
-ARTICLE: "shuffle-words" "Shuffle words"
-"Shuffle words rearrange items at the top of the data stack. They control the flow of data between words that perform actions."
+ARTICLE: "shuffle-words-complex" "Complex shuffle words"
+"These shuffle words tend to make code difficult to read and to reason about. Code that uses them should almost always be rewritten using " { $link "locals" } " or " { $link "dataflow-combinators" } "."
 $nl
-"The " { $link "cleave-combinators" } ", " { $link "spread-combinators" } " and " { $link "apply-combinators" } " are closely related to shuffle words and should be used instead where possible because they can result in clearer code; also, see the advice in " { $link "cookbook-philosophy" } "."
+"Duplicating stack elements deep in the stack:"
+{ $subsections
+    dupd
+    tuck
+}
+"Permuting stack elements deep in the stack:"
+{ $subsections
+    swapd
+    rot
+    -rot
+    spin
+} ;
+
+ARTICLE: "shuffle-words" "Shuffle words"
+"Shuffle words rearrange items at the top of the data stack as indicated by their stack effects. They provide simple data flow control between words. More complex data flow control is available with the " { $link "dataflow-combinators" } " and with " { $link "locals" } "."
 $nl
 "Removing stack elements:"
-{ $subsection drop }
-{ $subsection 2drop }
-{ $subsection 3drop }
-{ $subsection nip }
-{ $subsection 2nip }
+{ $subsections
+    drop
+    2drop
+    3drop
+    nip
+    2nip
+}
 "Duplicating stack elements:"
-{ $subsection dup }
-{ $subsection 2dup }
-{ $subsection 3dup }
-{ $subsection dupd }
-{ $subsection over }
-{ $subsection 2over }
-{ $subsection pick }
-{ $subsection tuck }
+{ $subsections
+    dup
+    2dup
+    3dup
+    over
+    2over
+    pick
+}
 "Permuting stack elements:"
-{ $subsection swap }
-{ $subsection swapd }
-{ $subsection rot }
-{ $subsection -rot }
-{ $subsection spin }
-{ $subsection roll }
-{ $subsection -roll } ;
+{ $subsections
+    swap
+}
+"There are additional, more complex stack shuffling words whose use is not recommended."
+{ $subsections
+    "shuffle-words-complex"
+} ;
 
 ARTICLE: "equality" "Equality"
 "There are two distinct notions of “sameness” when it comes to objects."
 $nl
 "You can test if two references point to the same object (" { $emphasis "identity comparison" } "). This is rarely used; it is mostly useful with large, mutable objects where the object identity matters but the value is transient:"
-{ $subsection eq? }
+{ $subsections eq? }
 "You can test if two objects are equal in a domain-specific sense, usually by being instances of the same class, and having equal slot values (" { $emphasis "value comparison" } "):"
-{ $subsection = }
+{ $subsections = }
 "A third form of equality is provided by " { $link number= } ". It compares numeric value while disregarding types."
 $nl
 "Custom value comparison methods for use with " { $link = } " can be defined on a generic word:"
-{ $subsection equal? }
+{ $subsections equal? }
 "Utility class:"
-{ $subsection identity-tuple }
+{ $subsections identity-tuple }
 "An object can be cloned; the clone has distinct identity but equal value:"
-{ $subsection clone } ;
+{ $subsections clone } ;
 
 ARTICLE: "assertions" "Assertions"
 "Some words to make assertions easier to enforce:"
-{ $subsection assert }
-{ $subsection assert= } ;
+{ $subsections
+    assert
+    assert=
+} ;
 

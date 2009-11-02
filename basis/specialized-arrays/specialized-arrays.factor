@@ -1,10 +1,12 @@
 ! Copyright (C) 2008, 2009 Slava Pestov.
 ! See http://factorcode.org/license.txt for BSD license.
-USING: accessors alien alien.c-types assocs byte-arrays classes
-compiler.units functors kernel lexer libc math
-math.vectors.specialization namespaces parser prettyprint.custom
-sequences sequences.private strings summary vocabs vocabs.loader
-vocabs.parser words fry combinators ;
+USING: accessors alien alien.c-types alien.data alien.parser
+assocs byte-arrays classes compiler.units functors kernel lexer
+libc math math.vectors math.vectors.private
+math.vectors.specialization namespaces
+parser prettyprint.custom sequences sequences.private strings
+summary vocabs vocabs.loader vocabs.parser vocabs.generated
+words fry combinators make ;
 IN: specialized-arrays
 
 MIXIN: specialized-array
@@ -53,15 +55,21 @@ TUPLE: A
 
 : <direct-A> ( alien len -- specialized-array ) A boa ; inline
 
-: <A> ( n -- specialized-array ) [ T <underlying> ] keep <direct-A> ; inline
+: <A> ( n -- specialized-array )
+    [ \ T <underlying> ] keep <direct-A> ; inline
 
-: (A) ( n -- specialized-array ) [ T (underlying) ] keep <direct-A> ; inline
+: (A) ( n -- specialized-array )
+    [ \ T (underlying) ] keep <direct-A> ; inline
 
-: malloc-A ( len -- specialized-array ) [ T heap-size calloc ] keep <direct-A> ; inline
+: malloc-A ( len -- specialized-array )
+    [ \ T heap-size calloc ] keep <direct-A> ; inline
 
 : byte-array>A ( byte-array -- specialized-array )
-    dup length T heap-size /mod 0 = [ drop T bad-byte-array-length ] unless
+    >c-ptr dup length \ T heap-size /mod 0 =
+    [ drop \ T bad-byte-array-length ] unless
     <direct-A> ; inline
+
+M: A new-underlying drop byte-array>A ;
 
 M: A clone [ underlying>> clone ] [ length>> ] bi <direct-A> ; inline
 
@@ -81,12 +89,14 @@ M: A equal? over A instance? [ sequence= ] [ 2drop f ] if ;
 
 M: A resize
     [
-        [ T heap-size * ] [ underlying>> ] bi*
+        [ \ T heap-size * ] [ underlying>> ] bi*
         resize-byte-array
     ] [ drop ] 2bi
     <direct-A> ; inline
 
-M: A byte-length length T heap-size * ; inline
+M: A byte-length length \ T heap-size * ; inline
+
+M: A element-type drop \ T ; inline
 
 M: A direct-array-syntax drop \ A@ ;
 
@@ -95,7 +105,7 @@ M: A pprint-delims drop \ A{ \ } ;
 M: A >pprint-sequence ;
 
 SYNTAX: A{ \ } [ >A ] parse-literal ;
-SYNTAX: A@ scan-object scan-object <direct-A> parsed ;
+SYNTAX: A@ scan-object scan-object <direct-A> suffix! ;
 
 INSTANCE: A specialized-array
 
@@ -103,54 +113,62 @@ A T c-type-boxed-class f specialize-vector-words
 
 ;FUNCTOR
 
+GENERIC: (underlying-type) ( c-type -- c-type' )
+
+M: string (underlying-type) c-types get at ;
+M: word (underlying-type) "c-type" word-prop ;
+
 : underlying-type ( c-type -- c-type' )
-    dup c-types get at {
+    dup (underlying-type) {
         { [ dup not ] [ drop no-c-type ] }
-        { [ dup string? ] [ nip underlying-type ] }
+        { [ dup c-type-name? ] [ nip underlying-type ] }
         [ drop ]
     } cond ;
 
 : specialized-array-vocab ( c-type -- vocab )
-    "specialized-arrays.instances." prepend ;
+    [
+        "specialized-arrays.instances." %
+        [ vocabulary>> % "." % ]
+        [ name>> % ]
+        bi
+    ] "" make ;
 
 PRIVATE>
-
-: generate-vocab ( vocab-name quot -- vocab )
-    [ dup vocab [ ] ] dip '[
-        [
-            [
-                 _ with-current-vocab
-            ] with-compilation-unit
-        ] keep
-    ] ?if ; inline
 
 : define-array-vocab ( type -- vocab )
     underlying-type
     [ specialized-array-vocab ] [ '[ _ define-array ] ] bi
     generate-vocab ;
 
-M: string require-c-array define-array-vocab drop ;
+M: c-type-name require-c-array define-array-vocab drop ;
 
 ERROR: specialized-array-vocab-not-loaded c-type ;
 
-M: string c-array-constructor
+M: c-type-name c-array-constructor
     underlying-type
-    dup [ "<" "-array>" surround ] [ specialized-array-vocab ] bi lookup
+    dup [ name>> "<" "-array>" surround ] [ specialized-array-vocab ] bi lookup
     [ ] [ specialized-array-vocab-not-loaded ] ?if ; foldable
 
-M: string c-(array)-constructor
+M: c-type-name c-(array)-constructor
     underlying-type
-    dup [ "(" "-array)" surround ] [ specialized-array-vocab ] bi lookup
+    dup [ name>> "(" "-array)" surround ] [ specialized-array-vocab ] bi lookup
     [ ] [ specialized-array-vocab-not-loaded ] ?if ; foldable
 
-M: string c-direct-array-constructor
+M: c-type-name c-direct-array-constructor
     underlying-type
-    dup [ "<direct-" "-array>" surround ] [ specialized-array-vocab ] bi lookup
+    dup [ name>> "<direct-" "-array>" surround ] [ specialized-array-vocab ] bi lookup
     [ ] [ specialized-array-vocab-not-loaded ] ?if ; foldable
+
+SYNTAX: SPECIALIZED-ARRAYS:
+    ";" parse-tokens [ parse-c-type define-array-vocab use-vocab ] each ;
 
 SYNTAX: SPECIALIZED-ARRAY:
-    scan define-array-vocab use-vocab ;
+    scan-c-type define-array-vocab use-vocab ;
 
 "prettyprint" vocab [
     "specialized-arrays.prettyprint" require
+] when
+
+"mirrors" vocab [
+    "specialized-arrays.mirrors" require
 ] when

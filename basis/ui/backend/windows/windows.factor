@@ -5,15 +5,15 @@ USING: alien alien.c-types alien.strings arrays assocs ui
 ui.private ui.gadgets ui.gadgets.private ui.backend
 ui.clipboards ui.gadgets.worlds ui.gestures ui.event-loop io
 kernel math math.vectors namespaces make sequences strings
-vectors words windows.kernel32 windows.gdi32 windows.user32
-windows.opengl32 windows.messages windows.types
-windows.offscreen windows.nt threads libc combinators fry
-combinators.short-circuit continuations command-line shuffle
+vectors words windows.dwmapi system-info.windows windows.kernel32
+windows.gdi32 windows.user32 windows.opengl32 windows.messages
+windows.types windows.offscreen windows.nt threads libc combinators
+fry combinators.short-circuit continuations command-line shuffle
 opengl ui.render math.bitwise locals accessors math.rectangles
 math.order calendar ascii sets io.encodings.utf16n
 windows.errors literals ui.pixel-formats
-ui.pixel-formats.private memoize classes
-specialized-arrays classes.struct ;
+ui.pixel-formats.private memoize classes colors
+specialized-arrays classes.struct alien.data ;
 SPECIALIZED-ARRAY: POINT
 IN: ui.backend.windows
 
@@ -230,6 +230,7 @@ SYMBOLS: msg-obj class-name-ptr mouse-captured ;
 CONSTANT: window-control>style
     H{
         { close-button 0 }
+        { textured-background 0 }
         { minimize-button $ WS_MINIMIZEBOX }
         { maximize-button $ WS_MAXIMIZEBOX }
         { resize-handles $ WS_THICKFRAME }
@@ -240,6 +241,7 @@ CONSTANT: window-control>style
 CONSTANT: window-control>ex-style
     H{
         { close-button 0 }
+        { textured-background 0 }
         { minimize-button 0 }
         { maximize-button 0 }
         { resize-handles $ WS_EX_WINDOWEDGE }
@@ -468,7 +470,7 @@ SYMBOL: nc-buttons
 : handle-wm-ncbutton ( hWnd uMsg wParam lParam -- )
     2drop nip
     message>button nc-buttons get
-    swap [ push ] [ delete ] if ;
+    swap [ push ] [ remove! drop ] if ;
 
 : mouse-wheel ( wParam -- array ) >lo-hi [ sgn neg ] map ;
 
@@ -496,13 +498,13 @@ SYMBOL: nc-buttons
 : handle-wm-buttondown ( hWnd uMsg wParam lParam -- )
     [
         over set-capture
-        dup message>button drop nc-buttons get delete
+        dup message>button drop nc-buttons get remove! drop
     ] 2dip prepare-mouse send-button-down ;
 
 : handle-wm-buttonup ( hWnd uMsg wParam lParam -- )
     mouse-captured get [ release-capture ] when
     pick message>button drop dup nc-buttons get member? [
-        nc-buttons get delete 4drop
+        nc-buttons get remove! drop 4drop
     ] [
         drop prepare-mouse send-button-up
     ] if ;
@@ -530,6 +532,21 @@ SYMBOL: nc-buttons
 : handle-wm-mouseleave ( hWnd uMsg wParam lParam -- )
     #! message sent if mouse leaves main application 
     4drop forget-rollover ;
+
+: system-background-color ( -- color )
+    COLOR_BTNFACE GetSysColor RGB>color ;
+
+: ?make-glass ( world hwnd -- )
+    over window-controls>> textured-background swap member-eq? [
+        composition-enabled? [
+            full-window-margins DwmExtendFrameIntoClientArea drop
+            T{ rgba f 0.0 0.0 0.0 0.0 }
+        ] [ drop system-background-color ] if >>background-color
+        drop
+    ] [ 2drop ] if ;
+
+: handle-wm-dwmcompositionchanged ( hWnd uMsg wParam lParam -- )
+    3drop [ window ] keep ?make-glass ;
 
 SYMBOL: wm-handlers
 
@@ -560,6 +577,7 @@ H{ } clone wm-handlers set-global
 [ handle-wm-buttonup 0   ] WM_LBUTTONUP   add-wm-handler
 [ handle-wm-buttonup 0   ] WM_MBUTTONUP   add-wm-handler
 [ handle-wm-buttonup 0   ] WM_RBUTTONUP   add-wm-handler
+[ handle-wm-dwmcompositionchanged 0   ] WM_DWMCOMPOSITIONCHANGED add-wm-handler
 
 [ 4dup handle-wm-ncbutton DefWindowProc ]
 { WM_NCLBUTTONDOWN WM_NCMBUTTONDOWN WM_NCRBUTTONDOWN
@@ -578,7 +596,7 @@ SYMBOL: trace-messages?
 
 ! return 0 if you handle the message, else just let DefWindowProc return its val
 : ui-wndproc ( -- object )
-    "uint" { "void*" "uint" "long" "long" } "stdcall" [
+    uint { void* uint long long } "stdcall" [
         pick
         trace-messages? get-global [ dup windows-message-name name>> print flush ] when
         wm-handlers get-global at* [ call ] [ drop DefWindowProc ] if
@@ -653,7 +671,7 @@ M: windows-ui-backend do-events
 
 : init-win32-ui ( -- )
     V{ } clone nc-buttons set-global
-    "MSG" malloc-object msg-obj set-global
+    MSG malloc-struct msg-obj set-global
     GetDoubleClickTime milliseconds double-click-timeout set-global ;
 
 : cleanup-win32-ui ( -- )
@@ -688,8 +706,9 @@ M: windows-ui-backend (open-window) ( world -- )
     [
         dup
         [ ] [ world>style ] [ world>ex-style ] tri create-window
+        [ ?make-glass ]
         [ ?disable-close-button ]
-        [ [ f f ] dip f f <win> >>handle setup-gl ] 2bi
+        [ [ f f ] dip f f <win> >>handle setup-gl ] 2tri
     ]
     [ dup handle>> hWnd>> register-window ]
     [ handle>> hWnd>> show-window ] tri ;

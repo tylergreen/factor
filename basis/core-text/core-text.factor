@@ -6,19 +6,19 @@ math.order math.vectors math.rectangles math.functions locals init
 namespaces combinators fonts colors cache core-foundation
 core-foundation.strings core-foundation.attributed-strings
 core-foundation.utilities core-graphics core-graphics.types
-core-text.fonts core-text.utilities ;
+core-text.fonts ;
 IN: core-text
 
 TYPEDEF: void* CTLineRef
 
-C-GLOBAL: kCTFontAttributeName
-C-GLOBAL: kCTKernAttributeName
-C-GLOBAL: kCTLigatureAttributeName
-C-GLOBAL: kCTForegroundColorAttributeName
-C-GLOBAL: kCTParagraphStyleAttributeName
-C-GLOBAL: kCTUnderlineStyleAttributeName
-C-GLOBAL: kCTVerticalFormsAttributeName
-C-GLOBAL: kCTGlyphInfoAttributeName
+C-GLOBAL: CFStringRef kCTFontAttributeName
+C-GLOBAL: CFStringRef kCTKernAttributeName
+C-GLOBAL: CFStringRef kCTLigatureAttributeName
+C-GLOBAL: CFStringRef kCTForegroundColorAttributeName
+C-GLOBAL: CFStringRef kCTParagraphStyleAttributeName
+C-GLOBAL: CFStringRef kCTUnderlineStyleAttributeName
+C-GLOBAL: CFStringRef kCTVerticalFormsAttributeName
+C-GLOBAL: CFStringRef kCTGlyphInfoAttributeName
 
 FUNCTION: CTLineRef CTLineCreateWithAttributedString ( CFAttributedStringRef string ) ;
 
@@ -112,35 +112,34 @@ TUPLE: line < disposable line metrics image loc dim ;
     [
         line new-disposable
 
-        [let* | open-font [ font cache-font ]
-                line [ string open-font font foreground>> <CTLine> |CFRelease ]
+        font cache-font :> open-font
+        string open-font font foreground>> <CTLine> |CFRelease :> line
 
-                rect [ line line-rect ]
-                (loc) [ rect origin>> CGPoint>loc ]
-                (dim) [ rect size>> CGSize>dim ]
-                (ext) [ (loc) (dim) v+ ]
-                loc [ (loc) [ floor ] map ]
-                ext [ (loc) (dim) [ + ceiling ] 2map ]
-                dim [ ext loc [ - >integer 1 max ] 2map ]
-                metrics [ open-font line compute-line-metrics ] |
+        line line-rect :> rect
+        rect origin>> CGPoint>loc :> (loc)
+        rect size>> CGSize>dim :> (dim)
+        (loc) (dim) v+ :> (ext)
+        (loc) [ floor ] map :> loc
+        (loc) (dim) [ + ceiling ] 2map :> ext
+        ext loc [ - >integer 1 max ] 2map :> dim
+        open-font line compute-line-metrics :> metrics
 
-            line >>line
+        line >>line
 
-            metrics >>metrics
+        metrics >>metrics
 
-            dim [
-                {
-                    [ font dim fill-background ]
-                    [ loc dim line string fill-selection-background ]
-                    [ loc set-text-position ]
-                    [ [ line ] dip CTLineDraw ]
-                } cleave
-            ] make-bitmap-image >>image
+        dim [
+            {
+                [ font dim fill-background ]
+                [ loc dim line string fill-selection-background ]
+                [ loc set-text-position ]
+                [ [ line ] dip CTLineDraw ]
+            } cleave
+        ] make-bitmap-image >>image
 
-            metrics loc dim line-loc >>loc
+        metrics loc dim line-loc >>loc
 
-            metrics metrics>dim >>dim
-        ]
+        metrics metrics>dim >>dim
     ] with-destructors ;
 
 M: line dispose* line>> CFRelease ;

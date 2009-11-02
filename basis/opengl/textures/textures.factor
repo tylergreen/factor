@@ -5,6 +5,7 @@ kernel opengl opengl.gl opengl.capabilities combinators images
 images.tesselation grouping sequences math math.vectors
 math.matrices generalizations fry arrays namespaces system
 locals literals specialized-arrays ;
+FROM: alien.c-types => float ;
 SPECIALIZED-ARRAY: float
 IN: opengl.textures
 
@@ -277,7 +278,7 @@ TUPLE: single-texture < disposable image dim loc texture-coords texture display-
     ] unless ;
 
 :: tex-image ( image bitmap -- )
-    image image-format :> type :> format :> internal-format
+    image image-format :> ( internal-format format type )
     GL_TEXTURE_2D 0 internal-format
     image dim>> adjust-texture-dim first2 0
     format type bitmap glTexImage2D ;

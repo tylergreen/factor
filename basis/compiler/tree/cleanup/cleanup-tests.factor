@@ -16,6 +16,7 @@ compiler.tree.propagation
 compiler.tree.propagation.info
 compiler.tree.checker
 compiler.tree.debugger ;
+FROM: math => float ;
 IN: compiler.tree.cleanup.tests
 
 [ t ] [ [ [ 1 ] [ 2 ] if ] cleaned-up-tree [ #if? ] contains-node? ] unit-test
@@ -490,7 +491,7 @@ cell-bits 32 = [
 ] unit-test
 
 [ t ] [
-    [ { array } declare 2 <groups> [ . . ] assoc-each ]
+    [ { array } declare 2 <sliced-groups> [ . . ] assoc-each ]
     \ nth-unsafe inlined?
 ] unit-test
 

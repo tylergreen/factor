@@ -3,17 +3,13 @@ IN: grouping
 
 ARTICLE: "grouping" "Groups and clumps"
 "Splitting a sequence into disjoint, fixed-length subsequences:"
-{ $subsection group }
+{ $subsections group }
 "A virtual sequence for splitting a sequence into disjoint, fixed-length subsequences:"
-{ $subsection groups }
-{ $subsection <groups> }
-{ $subsection <sliced-groups> }
+{ $subsections groups <groups> <sliced-groups> }
 "Splitting a sequence into overlapping, fixed-length subsequences:"
-{ $subsection clump }
+{ $subsections clump }
 "A virtual sequence for splitting a sequence into overlapping, fixed-length subsequences:"
-{ $subsection clumps }
-{ $subsection <clumps> }
-{ $subsection <sliced-clumps> }
+{ $subsections clumps <clumps> <sliced-clumps> }
 "The difference can be summarized as the following:"
 { $list
     { "With groups, the subsequences form the original sequence when concatenated:"
@@ -29,11 +25,11 @@ ARTICLE: "grouping" "Groups and clumps"
         }
     }
 }
+$nl
 "A combinator built using clumps:"
-{ $subsection monotonic? }
+{ $subsections monotonic? }
 "Testing how elements are related:"
-{ $subsection all-eq? }
-{ $subsection all-equal? } ;
+{ $subsections all-eq? all-equal? } ;
 
 ABOUT: "grouping"
 
@@ -56,7 +52,7 @@ HELP: <groups>
 { $examples
     { $example
         "USING: arrays kernel prettyprint sequences grouping ;"
-        "9 >array 3 <groups> dup reverse-here concat >array ." "{ 6 7 8 3 4 5 0 1 2 }"
+        "9 >array 3 <groups> reverse! concat >array ." "{ 6 7 8 3 4 5 0 1 2 }"
     }
     { $example
         "USING: kernel prettyprint sequences grouping ;"
@@ -72,7 +68,7 @@ HELP: <sliced-groups>
     { $example
         "USING: arrays kernel prettyprint sequences grouping ;"
         "9 >array 3 <sliced-groups>"
-        "dup [ reverse-here ] each concat >array ."
+        "dup [ reverse! drop ] each concat >array ."
         "{ 2 1 0 5 4 3 8 7 6 }"
     }
     { $example

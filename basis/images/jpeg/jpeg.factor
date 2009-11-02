@@ -11,7 +11,9 @@ IN: images.jpeg
 
 QUALIFIED-WITH: bitstreams bs
 
-TUPLE: jpeg-image < image
+SINGLETON: jpeg-image
+
+TUPLE: loading-jpeg < image
     { headers }
     { bitstream }
     { color-info initial: { f f f f } }
@@ -24,8 +26,8 @@ TUPLE: jpeg-image < image
 
 <PRIVATE
 
-: <jpeg-image> ( headers bitstream -- image )
-    jpeg-image new swap >>bitstream swap >>headers ;
+: <loading-jpeg> ( headers bitstream -- image )
+    loading-jpeg new swap >>bitstream swap >>headers ;
 
 SINGLETONS: SOF DHT DAC RST SOI EOI SOS DQT DNL DRI DHP EXP
 APP JPG COM TEM RES ;
@@ -352,20 +354,25 @@ SINGLETONS: YUV420 YUV444 Y MAGIC! ;
     [ decode-macroblock 2array ] accumulator 
     [ all-macroblocks ] dip
     jpeg> setup-bitmap draw-macroblocks 
-    jpeg> bitmap>> 3 <groups> [ color-transform ] change-each
+    jpeg> bitmap>> 3 <groups> [ color-transform ] map! drop
     jpeg> [ >byte-array ] change-bitmap drop ;
 
 ERROR: not-a-jpeg-image ;
 
-PRIVATE>
-
-M: jpeg-image stream>image ( stream jpeg-image -- bitmap )
-    drop [
-        parse-marker { SOI } = [ not-a-jpeg-image ] unless
-        parse-headers
-        contents <jpeg-image>
-    ] with-input-stream
+: loading-jpeg>image ( loading-jpeg -- image )
     dup jpeg-image [
         baseline-parse
         baseline-decompress
     ] with-variable ;
+
+: load-jpeg ( stream -- loading-jpeg )
+    [
+        parse-marker { SOI } = [ not-a-jpeg-image ] unless
+        parse-headers
+        unlimited-input contents <loading-jpeg>
+    ] with-input-stream ;
+
+PRIVATE>
+
+M: jpeg-image stream>image ( stream jpeg-image -- bitmap )
+    drop load-jpeg loading-jpeg>image ;

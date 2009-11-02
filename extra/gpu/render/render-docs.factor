@@ -1,9 +1,11 @@
 ! (c)2009 Joe Groff bsd license
-USING: alien alien.syntax byte-arrays classes gpu.buffers
-gpu.framebuffers gpu.shaders gpu.textures help.markup
-help.syntax images kernel math multiline sequences
+USING: alien alien.c-types alien.syntax byte-arrays classes
+gpu.buffers gpu.framebuffers gpu.shaders gpu.textures help.markup
+help.syntax images kernel math sequences
 specialized-arrays strings ;
-SPECIALIZED-ARRAY: float
+QUALIFIED-WITH: alien.c-types c
+QUALIFIED-WITH: math m
+SPECIALIZED-ARRAY: c:float
 SPECIALIZED-ARRAY: int
 SPECIALIZED-ARRAY: uint
 SPECIALIZED-ARRAY: ulong
@@ -39,17 +41,17 @@ HELP: <multi-index-range>
 { $description "Constructs a " { $link multi-index-range } " tuple." } ;
 
 HELP: UNIFORM-TUPLE:
-{ $syntax <" UNIFORM-TUPLE: class-name
+{ $syntax """UNIFORM-TUPLE: class-name
     { "slot" uniform-type dimension }
     { "slot" uniform-type dimension }
     ...
-    { "slot" uniform-type dimension } ; "> }
+    { "slot" uniform-type dimension } ;""" }
 { $description "Defines a new " { $link uniform-tuple } " class. Tuples of the new class can be used as the " { $snippet "uniforms" } " slot of a " { $link render-set } " in order to set the uniform parameters of the active shader program. The " { $link uniform-type } " of each slot defines the component type, and the " { $snippet "dimension" } " specifies an array length if not " { $link f } "."
 $nl
 "Uniform parameters are passed from Factor to the shader program through the uniform tuple as follows:"
 { $list
 { { $link int-uniform } "s and " { $link uint-uniform } "s take their values from Factor " { $link integer } "s." }
-{ { $link float-uniform } "s take their values from Factor " { $link float } "s." }
+{ { $link float-uniform } "s take their values from Factor " { $link m:float } "s." }
 { { $link bool-uniform } "s take their values from Factor " { $link boolean } "s." }
 { { $link texture-uniform } "s take their values from " { $link texture } " objects." }
 { "Vector uniforms take their values from Factor " { $link sequence } "s of the corresponding component type."
@@ -224,6 +226,11 @@ HELP: render-set
 } }
 { $notes "User-created framebuffers require OpenGL 3.0 or one of the " { $snippet "GL_EXT_framebuffer_object" } " or " { $snippet "GL_ARB_framebuffer_object" } " extensions. Disabling rasterization requires OpenGL 3.0 or the " { $snippet "GL_EXT_transform_feedback" } " extension. Named output-attachment values are available in GLSL 1.30 or later, and GLSL 1.20 and earlier using the " { $snippet "GL_EXT_gpu_shader4" } " extension. Transform feedback requires OpenGL 3.0 or one of the " { $snippet "GL_EXT_transform_feedback" } " or " { $snippet "GL_ARB_transform_feedback" } " extensions." } ;
 
+HELP: bind-uniforms
+{ $values { "program-instance" program-instance } { "uniforms" uniform-tuple } }
+{ $description "Binds the uniform shader parameters for " { $snippet "program-instance" } " using values from the given uniform tuple." }
+{ $notes "The " { $link render } " word uses this word. Calling this word directly is only necessary if uniform parameters need to be bound independently of a " { $snippet "render" } " operation." } ;
+
 { render render-set } related-words
 
 HELP: texture-uniform
@@ -290,10 +297,12 @@ HELP: vertex-indexes
 
 ARTICLE: "gpu.render" "Rendering"
 "The " { $vocab-link "gpu.render" } " vocabulary contains words for organizing and submitting data to the GPU for rendering."
-{ $subsection render }
-{ $subsection render-set }
+{ $subsections
+    render
+    render-set
+}
 { $link uniform-tuple } "s provide Factor types for containing and submitting shader uniform parameters:"
-{ $subsection POSTPONE: UNIFORM-TUPLE: }
+{ $subsections POSTPONE: UNIFORM-TUPLE: }
 ;
 
 ABOUT: "gpu.render"

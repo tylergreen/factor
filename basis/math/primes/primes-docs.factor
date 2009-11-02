@@ -44,7 +44,8 @@ HELP: random-prime
 
 HELP: unique-primes
 { $values
-    { "numbits" integer } { "n" integer }
+    { "n" integer }
+    { "numbits" integer }
     { "seq" sequence }
 }
 { $description "Generates a sequence of " { $snippet "n" } " unique prime numbers with exactly " { $snippet "numbits" } " bits." } ;
@@ -52,16 +53,20 @@ HELP: unique-primes
 ARTICLE: "math.primes" "Prime numbers"
 "The " { $vocab-link "math.primes" } " vocabulary implements words related to prime numbers. Serveral useful vocabularies exist for testing primality. The Sieve of Eratosthenes in " { $vocab-link "math.primes.erato" } " is useful for testing primality below five million. For larger integers, " { $vocab-link "math.primes.miller-rabin" } " is a fast probabilstic primality test. The " { $vocab-link "math.primes.lucas-lehmer" } " vocabulary implements an algorithm for finding huge Mersenne prime numbers." $nl
 "Testing if a number is prime:"
-{ $subsection prime? }
+{ $subsections prime? }
 "Generating prime numbers:"
-{ $subsection next-prime }
-{ $subsection primes-upto }
-{ $subsection primes-between }
-{ $subsection random-prime }
+{ $subsections
+    next-prime
+    primes-upto
+    primes-between
+    random-prime
+}
 "Generating relative prime numbers:"
-{ $subsection find-relative-prime }
-{ $subsection find-relative-prime* }
+{ $subsections
+    find-relative-prime
+    find-relative-prime*
+}
 "Make a sequence of random prime numbers:"
-{ $subsection unique-primes } ;
+{ $subsections unique-primes } ;
 
 ABOUT: "math.primes"

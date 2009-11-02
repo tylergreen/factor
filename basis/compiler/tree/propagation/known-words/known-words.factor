@@ -18,6 +18,7 @@ compiler.tree.propagation.constraints
 compiler.tree.propagation.call-effect
 compiler.tree.propagation.transforms
 compiler.tree.propagation.simd ;
+FROM: alien.c-types => (signed-interval) (unsigned-interval) ;
 IN: compiler.tree.propagation.known-words
 
 { + - * / }
@@ -139,20 +140,30 @@ IN: compiler.tree.propagation.known-words
     '[ _ _ 2bi ] "outputs" set-word-prop
 ] each
 
-\ shift [ [ interval-shift-safe ] [ may-overflow integer-valued ] binary-op ] each-derived-op
-\ shift [ [ interval-shift-safe ] [ integer-valued ] binary-op ] each-fast-derived-op
+: shift-op-class ( info1 info2 -- newclass )
+    [ class>> ] bi@
+    2dup [ null-class? ] either? [ 2drop null ] [ drop math-closure ] if ;
+
+: shift-op ( word interval-quot post-proc-quot -- )
+    '[
+        [ shift-op-class ] [ _ binary-op-interval ] 2bi
+        @
+        <class/interval-info>
+    ] "outputs" set-word-prop ;
+
+\ shift [ [ interval-shift-safe ] [ may-overflow integer-valued ] shift-op ] each-derived-op
+\ shift [ [ interval-shift-safe ] [ integer-valued ] shift-op ] each-fast-derived-op
 
 \ bitand [ [ interval-bitand ] [ integer-valued ] binary-op ] each-derived-op
 \ bitor [ [ interval-bitor ] [ integer-valued ] binary-op ] each-derived-op
 \ bitxor [ [ interval-bitxor ] [ integer-valued ] binary-op ] each-derived-op
 
 :: (comparison-constraints) ( in1 in2 op -- constraint )
-    [let | i1 [ in1 value-info interval>> ]
-           i2 [ in2 value-info interval>> ] |
-       in1 i1 i2 op assumption is-in-interval
-       in2 i2 i1 op swap-comparison assumption is-in-interval
-       /\
-    ] ;
+    in1 value-info interval>> :> i1
+    in2 value-info interval>> :> i2
+    in1 i1 i2 op assumption is-in-interval
+    in2 i2 i1 op swap-comparison assumption is-in-interval
+    /\ ;
 
 :: comparison-constraints ( in1 in2 out op -- constraint )
     in1 in2 op (comparison-constraints) out t-->
@@ -260,15 +271,9 @@ generic-comparison-ops [
     alien-unsigned-8
 } [
     dup name>> {
-        {
-            [ "alien-signed-" ?head ]
-            [ string>number 8 * 1 - 2^ dup neg swap 1 - [a,b] ]
-        }
-        {
-            [ "alien-unsigned-" ?head ]
-            [ string>number 8 * 2^ 1 - 0 swap [a,b] ]
-        }
-    } cond
+        { [ "alien-signed-" ?head ] [ string>number (signed-interval) ] }
+        { [ "alien-unsigned-" ?head ] [ string>number (unsigned-interval) ] }
+    } cond [a,b]
     [ fits-in-fixnum? fixnum integer ? ] keep <class/interval-info>
     '[ 2drop _ ] "outputs" set-word-prop
 ] each

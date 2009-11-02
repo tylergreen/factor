@@ -13,6 +13,8 @@ TUPLE: c-stream < disposable handle ;
 
 M: c-stream dispose* handle>> fclose ;
 
+M: c-stream stream-tell handle>> ftell ;
+
 M: c-stream stream-seek
     handle>> swap {
         { seek-absolute [ 0 ] }
@@ -47,7 +49,7 @@ M: c-reader stream-read1 dup check-disposed handle>> fgetc ;
 
 : read-until-loop ( stream delim -- ch )
     over stream-read1 dup [
-        dup pick memq? [ 2nip ] [ , read-until-loop ] if
+        dup pick member-eq? [ 2nip ] [ , read-until-loop ] if
     ] [
         2nip
     ] if ;

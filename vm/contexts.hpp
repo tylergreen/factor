@@ -23,6 +23,18 @@ struct context {
 	/* saved contents of rs register on entry to callback */
 	cell retainstack_save;
 
+	/* callback-bottom stack frame, or NULL for top-level context.
+	When nest_stacks() is called, callstack layout with callbacks
+	is as follows:
+	
+	[ C function ]
+	[ callback stub in code heap ] <-- this is the magic frame
+	[ native frame: c_to_factor() ]
+	[ callback quotation frame ] <-- first call frame in call stack
+	
+	magic frame is retained so that it's XT can be traced and forwarded. */
+	stack_frame *magic_frame;
+
 	/* memory region holding current datastack */
 	segment *datastack_region;
 
@@ -36,31 +48,16 @@ struct context {
 	context *next;
 };
 
-extern cell ds_size, rs_size;
-
-#define ds_bot (stack_chain->datastack_region->start)
-#define ds_top (stack_chain->datastack_region->end)
-#define rs_bot (stack_chain->retainstack_region->start)
-#define rs_top (stack_chain->retainstack_region->end)
+#define ds_bot (ctx->datastack_region->start)
+#define ds_top (ctx->datastack_region->end)
+#define rs_bot (ctx->retainstack_region->start)
+#define rs_top (ctx->retainstack_region->end)
 
 DEFPUSHPOP(d,ds)
 DEFPUSHPOP(r,rs)
 
-void reset_datastack();
-void reset_retainstack();
-void fix_stacks();
-void init_stacks(cell ds_size, cell rs_size);
-
-PRIMITIVE(datastack);
-PRIMITIVE(retainstack);
-PRIMITIVE(set_datastack);
-PRIMITIVE(set_retainstack);
-PRIMITIVE(check_datastack);
-
-VM_C_API void save_stacks();
-VM_C_API void nest_stacks();
-VM_C_API void unnest_stacks();
+VM_C_API void nest_stacks(stack_frame *magic_frame, factor_vm *vm);
+VM_C_API void unnest_stacks(factor_vm *vm);
 
 }
 
-VM_C_API factor::context *stack_chain;

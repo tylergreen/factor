@@ -2,8 +2,8 @@
 ! See http://factorcode.org/license.txt for BSD license.
 USING: assocs hashtables kernel sequences generic words
 arrays classes slots slots.private classes.tuple
-classes.tuple.private math vectors quotations accessors
-combinators ;
+classes.tuple.private math vectors math.vectors quotations
+accessors combinators byte-arrays vocabs vocabs.loader ;
 IN: mirrors
 
 TUPLE: mirror { object read-only } ;
@@ -48,10 +48,18 @@ M: mirror assoc-size object>> layout-of second ;
 
 INSTANCE: mirror assoc
 
+MIXIN: enumerated-sequence
+INSTANCE: array             enumerated-sequence
+INSTANCE: vector            enumerated-sequence
+INSTANCE: callable          enumerated-sequence
+INSTANCE: byte-array        enumerated-sequence
+
 GENERIC: make-mirror ( obj -- assoc )
 M: hashtable make-mirror ;
 M: integer make-mirror drop f ;
-M: array make-mirror <enum> ;
-M: vector make-mirror <enum> ;
-M: quotation make-mirror <enum> ;
+M: enumerated-sequence make-mirror <enum> ;
 M: object make-mirror <mirror> ;
+
+"specialized-arrays" vocab [
+    "specialized-arrays.mirrors" require
+] when

@@ -4,58 +4,47 @@ namespace factor
 {
 
 /* make a new array with an initial element */
-array *allot_array(cell capacity, cell fill_)
+array *factor_vm::allot_array(cell capacity, cell fill_)
 {
-	gc_root<object> fill(fill_);
-	gc_root<array> new_array(allot_array_internal<array>(capacity));
-
-	if(fill.value() == tag_fixnum(0))
-		memset(new_array->data(),'\0',capacity * sizeof(cell));
-	else
-	{
-		/* No need for write barrier here. Either the object is in
-		the nursery, or it was allocated directly in tenured space
-		and the write barrier is already hit for us in that case. */
-		cell i;
-		for(i = 0; i < capacity; i++)
-			new_array->data()[i] = fill.value();
-	}
+	gc_root<object> fill(fill_,this);
+	gc_root<array> new_array(allot_array_internal<array>(capacity),this);
+	memset_cell(new_array->data(),fill.value(),capacity * sizeof(cell));
 	return new_array.untagged();
 }
 
 /* push a new array on the stack */
-PRIMITIVE(array)
+void factor_vm::primitive_array()
 {
 	cell initial = dpop();
 	cell size = unbox_array_size();
 	dpush(tag<array>(allot_array(size,initial)));
 }
 
-cell allot_array_1(cell obj_)
+cell factor_vm::allot_array_1(cell obj_)
 {
-	gc_root<object> obj(obj_);
-	gc_root<array> a(allot_array_internal<array>(1));
+	gc_root<object> obj(obj_,this);
+	gc_root<array> a(allot_array_internal<array>(1),this);
 	set_array_nth(a.untagged(),0,obj.value());
 	return a.value();
 }
 
-cell allot_array_2(cell v1_, cell v2_)
+cell factor_vm::allot_array_2(cell v1_, cell v2_)
 {
-	gc_root<object> v1(v1_);
-	gc_root<object> v2(v2_);
-	gc_root<array> a(allot_array_internal<array>(2));
+	gc_root<object> v1(v1_,this);
+	gc_root<object> v2(v2_,this);
+	gc_root<array> a(allot_array_internal<array>(2),this);
 	set_array_nth(a.untagged(),0,v1.value());
 	set_array_nth(a.untagged(),1,v2.value());
 	return a.value();
 }
 
-cell allot_array_4(cell v1_, cell v2_, cell v3_, cell v4_)
+cell factor_vm::allot_array_4(cell v1_, cell v2_, cell v3_, cell v4_)
 {
-	gc_root<object> v1(v1_);
-	gc_root<object> v2(v2_);
-	gc_root<object> v3(v3_);
-	gc_root<object> v4(v4_);
-	gc_root<array> a(allot_array_internal<array>(4));
+	gc_root<object> v1(v1_,this);
+	gc_root<object> v2(v2_,this);
+	gc_root<object> v3(v3_,this);
+	gc_root<object> v4(v4_,this);
+	gc_root<array> a(allot_array_internal<array>(4),this);
 	set_array_nth(a.untagged(),0,v1.value());
 	set_array_nth(a.untagged(),1,v2.value());
 	set_array_nth(a.untagged(),2,v3.value());
@@ -63,25 +52,42 @@ cell allot_array_4(cell v1_, cell v2_, cell v3_, cell v4_)
 	return a.value();
 }
 
-PRIMITIVE(resize_array)
+void factor_vm::primitive_resize_array()
 {
-	array* a = untag_check<array>(dpop());
+	array *a = untag_check<array>(dpop());
 	cell capacity = unbox_array_size();
 	dpush(tag<array>(reallot_array(a,capacity)));
 }
 
 void growable_array::add(cell elt_)
 {
-	gc_root<object> elt(elt_);
+	factor_vm *parent = elements.parent;
+	gc_root<object> elt(elt_,parent);
 	if(count == array_capacity(elements.untagged()))
-		elements = reallot_array(elements.untagged(),count * 2);
+		elements = parent->reallot_array(elements.untagged(),count * 2);
 
-	set_array_nth(elements.untagged(),count++,elt.value());
+	parent->set_array_nth(elements.untagged(),count++,elt.value());
+}
+
+void growable_array::append(array *elts_)
+{
+	factor_vm *parent = elements.parent;
+	gc_root<array> elts(elts_,parent);
+	cell capacity = array_capacity(elts.untagged());
+	if(count + capacity > array_capacity(elements.untagged()))
+	{
+		elements = parent->reallot_array(elements.untagged(),
+			(count + capacity) * 2);
+	}
+
+	for(cell index = 0; index < capacity; index++)
+		parent->set_array_nth(elements.untagged(),count++,array_nth(elts.untagged(),index));
 }
 
 void growable_array::trim()
 {
-	elements = reallot_array(elements.untagged(),count);
+	factor_vm *parent = elements.parent;
+	elements = parent->reallot_array(elements.untagged(),count);
 }
 
 }

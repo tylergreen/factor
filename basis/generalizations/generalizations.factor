@@ -1,23 +1,21 @@
 ! Copyright (C) 2007, 2009 Chris Double, Doug Coleman, Eduardo
 ! Cavazos, Slava Pestov.
 ! See http://factorcode.org/license.txt for BSD license.
-USING: kernel sequences sequences.private math combinators
-macros quotations fry effects ;
+USING: kernel kernel.private sequences sequences.private math
+combinators macros math.order math.ranges quotations fry effects
+memoize.private ;
 IN: generalizations
 
 <<
 
-: n*quot ( n quot -- quot' ) <repetition> concat >quotation ;
+ALIAS: n*quot (n*quot)
 
 : repeat ( n obj quot -- ) swapd times ; inline
 
 >>
 
 MACRO: nsequence ( n seq -- )
-    [
-        [ drop iota <reversed> ] [ '[ _ _ new-sequence ] ] 2bi
-        [ '[ @ [ _ swap set-nth-unsafe ] keep ] ] reduce
-    ] keep
+    [ [nsequence] ] keep
     '[ @ _ like ] ;
 
 MACRO: narray ( n -- )
@@ -27,7 +25,7 @@ MACRO: nsum ( n -- )
     1 - [ + ] n*quot ;
 
 MACRO: firstn-unsafe ( n -- )
-    iota [ '[ [ _ ] dip nth-unsafe ] ] map '[ _ cleave ] ;
+    [firstn] ;
 
 MACRO: firstn ( n -- )
     dup zero? [ drop [ drop ] ] [
@@ -45,11 +43,27 @@ MACRO: nover ( n -- )
 MACRO: ndup ( n -- )
     dup '[ _ npick ] n*quot ;
 
+MACRO: dupn ( n -- )
+    [ [ drop ] ]
+    [ 1 - [ dup ] n*quot ] if-zero ;
+
 MACRO: nrot ( n -- )
     1 - [ ] [ '[ _ dip swap ] ] repeat ;
 
 MACRO: -nrot ( n -- )
     1 - [ ] [ '[ swap _ dip ] ] repeat ;
+
+MACRO: set-firstn-unsafe ( n -- )
+    [ 1 + ]
+    [ iota [ '[ _ rot [ set-nth-unsafe ] keep ] ] map ] bi
+    '[ _ -nrot _ spread drop ] ;
+
+MACRO: set-firstn ( n -- )
+    dup zero? [ drop [ drop ] ] [
+        [ 1 - swap bounds-check 2drop ]
+        [ set-firstn-unsafe ]
+        bi-curry '[ _ _ bi ]
+    ] if ;
 
 MACRO: ndrop ( n -- )
     [ drop ] n*quot ;
@@ -60,11 +74,11 @@ MACRO: nnip ( n -- )
 MACRO: ntuck ( n -- )
     2 + '[ dup _ -nrot ] ;
 
-MACRO: ndip ( quot n -- )
-    [ '[ _ dip ] ] times ;
+MACRO: ndip ( n -- )
+    [ [ dip ] curry ] n*quot [ call ] compose ;
 
-MACRO: nkeep ( quot n -- )
-    tuck '[ _ ndup _ _ ndip ] ;
+MACRO: nkeep ( n -- )
+    dup '[ [ _ ndup ] dip _ ndip ] ;
 
 MACRO: ncurry ( n -- )
     [ curry ] n*quot ;
@@ -87,8 +101,28 @@ MACRO: nspread ( quots n -- )
         '[ [ _ _ nspread ] _ ndip @ ]
     ] if ;
 
-MACRO: napply ( quot n -- )
-    swap <repetition> spread>quot ;
+MACRO: spread* ( n -- )
+    [ [ ] ] [
+        1 swap [a,b) [ '[ [ [ _ ndip ] curry ] dip compose ] ] map [ ] concat-as
+        [ call ] compose
+    ] if-zero ;
+
+MACRO: cleave* ( n -- )
+    [ [ ] ]
+    [ 1 - [ [ [ keep ] curry ] dip compose ] n*quot [ call ] compose ] 
+    if-zero ;
+
+MACRO: napply ( n -- )
+    [ [ drop ] ] dip [ '[ tuck _ 2dip call ] ] times ;
+
+: apply-curry ( ...a quot n -- )
+    [ [curry] ] dip napply ; inline
+
+: cleave-curry ( a ...quot n -- )
+    [ [curry] ] swap [ napply ] [ cleave* ] bi ; inline
+
+: spread-curry ( ...a ...quot n -- )
+    [ [curry] ] swap [ napply ] [ spread* ] bi ; inline
 
 MACRO: mnswap ( m n -- )
     1 + '[ _ -nrot ] swap '[ _ _ napply ] ;
@@ -104,3 +138,7 @@ MACRO: nbi-curry ( n -- )
     [ narray concat ] dip like ; inline
 
 : nappend ( n -- seq ) narray concat ; inline
+
+MACRO: nspin ( n -- )
+    [ [ ] ] swap [ swap [ ] curry compose ] n*quot [ call ] 3append ;
+

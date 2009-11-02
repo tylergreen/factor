@@ -4,14 +4,13 @@ specialized-arrays.private sequences alien.c-types accessors
 kernel arrays combinators compiler compiler.units classes.struct
 combinators.smart compiler.tree.debugger math libc destructors
 sequences.private multiline eval words vocabs namespaces
-assocs prettyprint ;
+assocs prettyprint alien.data math.vectors definitions ;
+FROM: alien.c-types => float ;
 
 SPECIALIZED-ARRAY: int
-SPECIALIZED-ARRAY: bool
-SPECIALIZED-ARRAY: ushort
-SPECIALIZED-ARRAY: char
-SPECIALIZED-ARRAY: uint
-SPECIALIZED-ARRAY: float
+SPECIALIZED-ARRAYS: bool ushort char uint float ulonglong ;
+
+[ ulonglong ] [ ulonglong-array{ } element-type ] unit-test
 
 [ t ] [ { 1 2 3 } >int-array int-array? ] unit-test
 
@@ -37,13 +36,16 @@ SPECIALIZED-ARRAY: float
     int-array{ 3 1 3 3 7 } malloc-byte-array 5 <direct-int-array> >array
 ] unit-test
 
+[ float-array{ HEX: 1.222,222   HEX: 1.111,112   } ]
+[ float-array{ HEX: 1.222,222,2 HEX: 1.111,111,1 } ] unit-test
+
 [ f ] [ float-array{ 4 3 2 1 } dup clone [ underlying>> ] bi@ eq? ] unit-test
 
 [ f ] [ [ float-array{ 4 3 2 1 } dup clone [ underlying>> ] bi@ eq? ] compile-call ] unit-test
 
 [ ushort-array{ 0 0 0 } ] [
     3 ALIEN: 123 100 <direct-ushort-array> new-sequence
-    dup [ drop 0 ] change-each
+    [ drop 0 ] map!
 ] unit-test
 
 STRUCT: test-struct
@@ -118,32 +120,36 @@ SPECIALIZED-ARRAY: fixed-string
 [ "int-array@ f 100" ] [ f 100 <direct-int-array> unparse ] unit-test
 
 ! If the C type doesn't exist, don't generate a vocab
-[ ] [
-    [ "__does_not_exist__" specialized-array-vocab forget-vocab ] with-compilation-unit
-    "__does_not_exist__" c-types get delete-at
-] unit-test
+SYMBOL: __does_not_exist__
 
 [
-    <"
+    """
 IN: specialized-arrays.tests
 USING: specialized-arrays ;
 
-SPECIALIZED-ARRAY: __does_not_exist__ "> eval( -- )
+SPECIALIZED-ARRAY: __does_not_exist__ """ eval( -- )
 ] must-fail
 
 [ ] [
-    <"
+    """
 IN: specialized-arrays.tests
-USING: classes.struct specialized-arrays ;
+USING: alien.c-types classes.struct specialized-arrays ;
 
 STRUCT: __does_not_exist__ { x int } ;
 
 SPECIALIZED-ARRAY: __does_not_exist__
-"> eval( -- )
+""" eval( -- )
 ] unit-test
 
 [ f ] [
     "__does_not_exist__-array{"
-    "__does_not_exist__" specialized-array-vocab lookup
+    __does_not_exist__ specialized-array-vocab lookup
     deferred?
+] unit-test
+
+[ ] [
+    [
+        \ __does_not_exist__ forget
+        __does_not_exist__ specialized-array-vocab forget-vocab
+    ] with-compilation-unit
 ] unit-test

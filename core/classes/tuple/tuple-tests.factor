@@ -110,7 +110,7 @@ TUPLE: yo-momma ;
     [ t ] [ \ yo-momma class? ] unit-test
     [ ] [ \ yo-momma forget ] unit-test
     [ ] [ \ <yo-momma> forget ] unit-test
-    [ f ] [ \ yo-momma update-map get values memq? ] unit-test
+    [ f ] [ \ yo-momma update-map get values member-eq? ] unit-test
 ] with-compilation-unit
 
 TUPLE: loc-recording ;
@@ -729,3 +729,8 @@ DEFER: redefine-tuple-twice
 [ ] [ "IN: classes.tuple.tests TUPLE: redefine-tuple-twice ;" eval( -- ) ] unit-test
 
 [ t ] [ \ redefine-tuple-twice symbol? ] unit-test
+
+ERROR: base-error x y ;
+ERROR: derived-error < base-error z ;
+
+[ (( x y z -- * )) ] [ \ derived-error stack-effect ] unit-test

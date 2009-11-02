@@ -4,7 +4,9 @@ compiler.tree.optimizer compiler.cfg.builder compiler.cfg.debugger
 compiler.cfg.optimizer compiler.cfg.predecessors compiler.cfg.checker
 compiler.cfg arrays locals byte-arrays kernel.private math
 slots.private vectors sbufs strings math.partial-dispatch
+hashtables assocs combinators.short-circuit
 strings.private accessors compiler.cfg.instructions ;
+FROM: alien.c-types => int ;
 IN: compiler.cfg.builder.tests
 
 ! Just ensure that various CFGs build correctly.
@@ -65,9 +67,9 @@ IN: compiler.cfg.builder.tests
     [ [ t ] loop ]
     [ [ dup ] loop ]
     [ [ 2 ] [ 3 throw ] if 4 ]
-    [ "int" f "malloc" { "int" } alien-invoke ]
-    [ "int" { "int" } "cdecl" alien-indirect ]
-    [ "int" { "int" } "cdecl" [ ] alien-callback ]
+    [ int f "malloc" { int } alien-invoke ]
+    [ int { int } "cdecl" alien-indirect ]
+    [ int { int } "cdecl" [ ] alien-callback ]
     [ swap - + * ]
     [ swap slot ]
     [ blahblah ]
@@ -158,9 +160,12 @@ IN: compiler.cfg.builder.tests
     { pinned-c-ptr class fixnum } \ set-alien-cell '[ _ declare _ execute ] unit-test-cfg
 ] each
 
-: contains-insn? ( quot insn-check -- ? )
+: count-insns ( quot insn-check -- ? )
     [ test-mr [ instructions>> ] map ] dip
-    '[ _ any? ] any? ; inline
+    '[ _ count ] map-sum ; inline
+
+: contains-insn? ( quot insn-check -- ? )
+    count-insns 0 > ; inline
 
 [ t ] [ [ swap ] [ ##replace? ] contains-insn? ] unit-test
 
@@ -196,12 +201,17 @@ IN: compiler.cfg.builder.tests
     [ f t ] [
         [ { byte-array fixnum } declare alien-cell 4 alien-float ]
         [ [ ##box-alien? ] contains-insn? ]
-        [ [ ##box-float? ] contains-insn? ] bi
+        [ [ ##allot? ] contains-insn? ] bi
     ] unit-test
 
     [ f t ] [
         [ { byte-array fixnum } declare alien-cell { simple-alien } declare 4 alien-float ]
         [ [ ##box-alien? ] contains-insn? ]
-        [ [ ##box-float? ] contains-insn? ] bi
+        [ [ ##allot? ] contains-insn? ] bi
     ] unit-test
+    
+    [ 1 ] [ [ dup float+ ] [ ##alien-double? ] count-insns ] unit-test
 ] when
+
+! Regression. Make sure everything is inlined correctly
+[ f ] [ M\ hashtable set-at [ { [ ##call? ] [ word>> \ set-slot eq? ] } 1&& ] contains-insn? ] unit-test

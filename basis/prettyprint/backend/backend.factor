@@ -119,7 +119,7 @@ M: pathname pprint*
         "~" over class name>> "~" 3append
         swap present-text
     ] [
-        over recursion-check get memq? [
+        over recursion-check get member-eq? [
             drop "~circularity~" swap present-text
         ] [
             over recursion-check get push
@@ -169,7 +169,7 @@ M: tuple pprint*
 : do-length-limit ( seq -- trimmed n/f )
     length-limit get dup [
         over length over [-]
-        dup zero? [ 2drop f ] [ [ head ] dip ] if
+        dup zero? [ 2drop f ] [ [ head-slice ] dip ] if
     ] when ;
 
 : pprint-elements ( seq -- )
