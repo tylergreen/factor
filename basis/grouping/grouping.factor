@@ -86,7 +86,10 @@ INSTANCE: sliced-clumps slice-chunking
 
 : group ( seq n -- array ) <groups> { } like ;
 
-: group* ( seq n -- array ) group unclip-last append ;
+: group* ( seq n -- array )
+    2dup [ length ] dip mod 0 =
+    [ group ]
+    [ group unclip-last append ] if ;
 
 : clump ( seq n -- array ) <clumps> { } like ;
 
