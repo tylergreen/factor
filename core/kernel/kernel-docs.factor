@@ -21,12 +21,10 @@ HELP: 2over                          $shuffle ;
 HELP: pick  ( x y z -- x y z x )     $shuffle ;
 HELP: swap  ( x y -- y x )           $shuffle ;
 
-HELP: spin                     $complex-shuffle ;
 HELP: rot   ( x y z -- y z x ) $complex-shuffle ;
 HELP: -rot  ( x y z -- z x y ) $complex-shuffle ;
 HELP: dupd  ( x y -- x x y )   $complex-shuffle ;
 HELP: swapd ( x y z -- y x z ) $complex-shuffle ;
-HELP: tuck  ( x y -- y x y )   $complex-shuffle ;
 
 HELP: datastack ( -- ds )
 { $values { "ds" array } }
@@ -651,7 +649,7 @@ HELP: declare
 
 HELP: tag ( object -- n )
 { $values { "object" object } { "n" "a tag number" } }
-{ $description "Outputs an object's tag number, between zero and one less than " { $link num-tags } ". This is implementation detail and user code should call " { $link class } " instead." } ;
+{ $description "Outputs an object's tag number, between zero and one less than " { $link num-types } ". This is implementation detail and user code should call " { $link class } " instead." } ;
 
 HELP: getenv ( n -- obj )
 { $values { "n" "a non-negative integer" } { "obj" object } }
@@ -821,14 +819,12 @@ $nl
 "Duplicating stack elements deep in the stack:"
 { $subsections
     dupd
-    tuck
 }
 "Permuting stack elements deep in the stack:"
 { $subsections
     swapd
     rot
     -rot
-    spin
 } ;
 
 ARTICLE: "shuffle-words" "Shuffle words"

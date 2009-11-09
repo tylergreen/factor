@@ -8,8 +8,6 @@ DEFER: 2dip
 DEFER: 3dip
 
 ! Stack stuff
-: spin ( x y z -- z y x ) swap rot ; inline
-
 : 2over ( x y z -- x y z x y ) pick pick ; inline
 
 : clear ( -- ) { } set-datastack ;
@@ -229,8 +227,6 @@ ERROR: assert got expect ;
 <PRIVATE
 
 : declare ( spec -- ) drop ;
-
-: hi-tag ( obj -- n ) { hi-tag } declare 0 slot ; inline
 
 : do-primitive ( number -- ) "Improper primitive call" throw ;
 
