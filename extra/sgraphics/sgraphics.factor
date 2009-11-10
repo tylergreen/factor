@@ -99,10 +99,10 @@ M: line scale ( line v -- line )
   '[ [ _ scale ] bi@ ] restruct ;
  
 M: circle scale ( circle v -- circle )
-    first '[ _ * ] restruct ;
+     dup '[ [ _ scale ] [ _ first * ] bi* ] restruct ;
 
 M: colored scale ( colored n -- colored )
-  '[ [ _ scale ] dip ] restruct ;
+     '[ [ _ scale ] dip ] restruct ;
 
 GENERIC# rotate 2 ( obj center radian -- obj )
 
@@ -133,6 +133,12 @@ M: scene rotate ( scene center radian -- scene )
   '[ [ _ _ rotate ] map ] restruct ; inline
 
 M: circle rotate ( center radian circle -- circle ) 2drop ; inline
+
+: flip-horizontal ( obj -- obj )
+     { -1 1 } scale ;
+
+: flip-vertical ( obj -- obj )
+     { 1 -1 } scale ;
 
 ! ****************
 ! Window Parameters
