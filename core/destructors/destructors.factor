@@ -6,7 +6,7 @@ IN: destructors
 
 SYMBOL: disposables
 
-[ H{ } clone disposables set-global ] "destructors" add-init-hook
+[ H{ } clone disposables set-global ] "destructors" add-startup-hook
 
 ERROR: already-unregistered disposable ;
 
@@ -26,15 +26,11 @@ SLOT: continuation
 PRIVATE>
 
 TUPLE: disposable < identity-tuple
-{ id integer }
 { disposed boolean }
 continuation ;
 
-M: disposable hashcode* nip id>> ;
-
 : new-disposable ( class -- disposable )
-    new \ disposable counter >>id
-    dup register-disposable ; inline
+    new dup register-disposable ; inline
 
 GENERIC: dispose* ( disposable -- )
 
@@ -91,3 +87,8 @@ PRIVATE>
         [ do-error-destructors ]
         cleanup
     ] with-scope ; inline
+
+[
+    always-destructors get-global
+    error-destructors get-global append dispose-each
+] "destructors.global" add-shutdown-hook
