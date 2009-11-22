@@ -10,7 +10,7 @@ TUPLE: square side ;
              1 -1 } ;
 
 : <rectangle> ( height width -- polygon )
-    [ 2 / ] bi@ 2array unit-square swap scale ;
+    [ 2.0 / ] bi@ 2array unit-square swap scale ; inline
 
 : <square> ( side -- polygon )
     dup <rectangle> ;

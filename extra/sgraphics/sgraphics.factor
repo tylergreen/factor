@@ -70,7 +70,7 @@ M: point slide ( point 2array -- point )
   v+ vec>point ; inline
 
 M: points slide ( points 2array -- points )
-   '[ [ _ slide ] map ] restruct ;
+   '[ [ _ slide ] map ] restruct ; inline
 
 M: scene slide ( scene 2array -- scene )
   '[ [ _ slide ] map ] restruct ; inline
@@ -153,7 +153,7 @@ TUPLE: window width height background title center zoom ;
     300 >>height 
     COLOR: black  >>background 
     "SGraphics 2D" >>title 
-    dup [ width>> ] [ height>> ] bi 2array [ 2 / ] map >>center
+    dup [ width>> ] [ height>> ] bi 2array [ 2.0 / ] map >>center
     1 >>zoom ;
 
 SYMBOL: win
