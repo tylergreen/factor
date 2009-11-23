@@ -164,15 +164,14 @@ win [ default-window ] initialize
 ! treewalker
 ! walk over scene data structure instead of call quotations
 
+
 TUPLE: gl-obj vertices type color ;
 : <gl-obj> ( vs type -- obj ) f gl-obj boa ;
 
+! would like to clean this up: hopefully get rid of gl-scene
 TUPLE: gl-scene color objs ;
 : <gl-scene> ( gl-objs -- gl-scene ) gl-scene new swap >>objs ; inline
   
-: my-do-state ( mode verts -- )
-     swap glBegin call( -- ) glEnd ; inline
-
 ! can make this so it only is done when needed
 GENERIC: draw-gl ( obj -- )
 
@@ -181,6 +180,10 @@ M:: gl-scene draw-gl ( scene -- )
   [ call( -- ) ]
   [ drop ] if
   scene objs>> [ draw-gl ] each ;
+
+! won't compile with regular do-state
+: my-do-state ( mode verts -- )
+     swap glBegin call( -- ) glEnd ; inline
 
 M:: gl-obj draw-gl ( gl-obj -- )
   GL_CURRENT_BIT glPushAttrib
@@ -246,7 +249,7 @@ M:: circle gl-compile ( circle -- quot )
     '[ GL_POLYGON _ do-state ] ; inline
 
 M: scene gl-compile ( scene -- gl-objs )
-      [ gl-compile ] map <gl-scene> ;
+     objs>> [ gl-compile ] map <gl-scene> ;
 
 : flatten-scene ( scene -- scene )
   [ [ dup scene?
@@ -273,7 +276,7 @@ M: sg-gadget pref-dim* ( gadget -- )
      ] ; inline
 
 : render ( scene -- )
-    objs>> [ gl-compile ] map <gl-scene> link
+     gl-compile link
     '[ sg-gadget \ draw-gadget* create-method
        _ define
     ]  with-compilation-unit
