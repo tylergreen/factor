@@ -1,10 +1,11 @@
-USING: sgraphics ;
+USING: sgraphics accessors arrays colors compiler.units fry generic
+inverse kernel locals math math.trig namespaces
+opengl.demo-support opengl.gl sequences sgraphics ui ui.gadgets
+ui.render vectors words ;
 IN: sgraphic.q-backend
 
 ! compile sgraphics language to one big factor quotation
 ! that draws the scene when called
-
-<PRIVATE
 
 ! ****************
 ! Coordinates System
@@ -95,4 +96,4 @@ M: sg-gadget pref-dim* ( gadget -- )
     ]  with-compilation-unit
     [ sg-gadget new win get title>> open-window ] with-ui ; inline
 
-PRIVATE>
+

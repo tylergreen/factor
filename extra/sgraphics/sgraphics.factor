@@ -9,6 +9,7 @@ words.constant classes.tuple
 colors colors.constants
 quotations continuations
 macros locals fry utils ;
+
 QUALIFIED: math.points
 IN: sgraphics
 
@@ -145,6 +146,7 @@ M: circle rotate ( center radian circle -- circle ) 2drop ; inline
 
 ! this method is better than globals if for no other reason than 
 ! you can print out all the current settings
+
 TUPLE: window width height background title center zoom ;
 
 : default-window ( -- window )
@@ -156,22 +158,228 @@ TUPLE: window width height background title center zoom ;
     dup [ width>> ] [ height>> ] bi 2array [ 2.0 / ] map >>center
     1 >>zoom ;
 
-SYMBOL: win
+SYMBOL: win 
 win [ default-window ] initialize
+
+TUPLE: sg-gadget < gadget ;
+
+M: sg-gadget pref-dim* ( gadget -- )
+  drop win get [ width>> ] [ height>> ] bi 2array ;
+
+! select which compiler backend to use
+! ds-backend is default (builds data-structure)
+SYMBOLS: sg-backend ds-backend q-backend ;
+sg-backend [ ds-backend ] initialize  
+
+ <PRIVATE
+
+! ****************
+! Coordinates System
+
+GENERIC: >winpoint ( x -- y )
+
+! might want to change this to a generic later
+M: point >winpoint ( cartesian-point -- window-coordinate )
+    [ neg ] restruct
+    win get zoom>> dup 2array scale
+    win get center>> slide ;
+
+
+! ***************************
+! OpenGL Backend #1: Compiles to quotation
+! Currently the slower backend
+
+
+GENERIC: gl-compile ( obj -- quot )
+
+: compile-color ( color -- quot )
+  [ <rgba> ] undo '[ _ _ _ _ glColor4f ] ;
+
+M: colored gl-compile ( colored-obj -- quot )
+  [ <colored> ] undo swap
+  [ compile-color ]
+  [ gl-compile ] bi*
+ '[ GL_CURRENT_BIT glPushAttrib
+    @ @
+    glPopAttrib ] ; inline
+
+M: point gl-compile ( point -- quot )
+   >winpoint [ <point> ] undo '[ _ _ glVertex2f ] ; inline
+
+: compile-points ( points-seq -- quot )
+  [ gl-compile ] map concat ; inline
+
+M: points gl-compile ( point-seq -- quot )
+  points-seq>> compile-points '[ GL_POINTS _ do-state ] ; inline
+
+M: line gl-compile ( line -- quot )
+  [ <line> ] undo 2array compile-points '[ GL_LINES _ do-state ] ; inline
+
+M: polyline gl-compile ( polyline -- quot )
+  points-seq>> compile-points '[ GL_LINE_STRIP _ do-state ] ; inline
+
+M: polygon gl-compile ( polygon -- quot )
+  points-seq>> compile-points '[ GL_POLYGON _ do-state ] ; inline
+
+M: polygon-outline gl-compile ( polygon-outline -- quot )
+  points-seq>> compile-points '[ GL_LINE_LOOP _ do-state ] ; inline
+
+! should probably make circle "precision" either accessable to programmer
+! or vary due to size of cirlce -- whichever is simpler
+M:: circle gl-compile ( circle -- quot )
+    circle [ <circle> ] undo :> ( c r )
+    c { r 0 } slide
+    '[ 12 * deg>rad _ c rot rotate ] 30 swap map compile-points
+    '[ GL_POLYGON _ do-state ] ; inline
+
+M: scene gl-compile ( scene -- quot )
+  [ <scene> ] undo [ gl-compile ] [ ] map-as concat ; inline
+
+: link ( quot -- quot )
+  [ drop
+    GL_PROJECTION glMatrixMode
+    glLoadIdentity
+    0 win get [ width>> ] [ height>> ] bi 0 0 1 glOrtho
+    GL_MODELVIEW glMatrixMode
+    glLoadIdentity
+    GL_DEPTH_TEST glDisable
+    win get background>> [ <rgba> ] undo glClearColor 
+    GL_COLOR_BUFFER_BIT glClear
+  ] prepose ; inline
+
+! ******************
+! OpenGL Backend #2: Compiles to explicit data
+! Compiles sgraphics language to an explicit data structure
+! That is traversed during the drawing process
+
+ TUPLE: gl-obj vertices type color ;
+: <gl-obj> ( vs type -- obj ) f gl-obj boa ;
+
+! would like to clean this up: hopefully get rid of gl-scene
+TUPLE: gl-scene color objs ;
+: <gl-scene> ( gl-objs -- gl-scene ) gl-scene new swap >>objs ; inline
+  
+! can make this so it only is done when needed
+GENERIC: draw-gl ( obj -- )
+
+M:: gl-scene draw-gl ( scene -- )
+  scene color>> dup
+  [ call( -- ) ]
+  [ drop ] if
+  scene objs>> [ draw-gl ] each ;
+
+! won't compile with regular do-state
+: my-do-state ( mode verts -- )
+     swap glBegin call( -- ) glEnd ; inline
+
+M:: gl-obj draw-gl ( gl-obj -- )
+  GL_CURRENT_BIT glPushAttrib
+  gl-obj color>> dup 
+  [ call( -- ) ]
+  [ drop ] if
+  gl-obj type>>
+  gl-obj vertices>> my-do-state
+  glPopAttrib ; inline
+
+! here
+GENERIC: gl-compile2 ( obj -- quot )
+
+: compile-color2 ( color -- quot )
+  [ <rgba> ] undo '[ _ _ _ _ glColor4f ] ;
+
+M: colored gl-compile2 ( colored-obj -- quot )
+  [ <colored> ] undo
+  [ gl-compile2 ]
+  [ compile-color ] bi* >>color ;
+
+M: point gl-compile2 ( point -- quot )
+  1array <points> gl-compile2 ; inline
+
+: compile-points2 ( points-seq -- quot )
+  [ >winpoint [ <point> ] undo '[ _ _ glVertex2f ]
+  ] map concat ; inline
+
+M: points gl-compile2 ( point-seq -- quot )
+  points-seq>> compile-points2 GL_POINTS <gl-obj> ; inline
+
+M: line gl-compile2 ( line -- quot )
+  [ <line> ] undo 2array compile-points2 GL_LINES <gl-obj> ; inline
+
+M: polyline gl-compile2 ( polyline -- quot )
+  points-seq>> compile-points2 GL_LINE_STRIP <gl-obj> ; inline
+
+M: polygon gl-compile2 ( polygon -- quot )
+  points-seq>> compile-points2 GL_POLYGON <gl-obj> ; inline
+
+M: polygon-outline gl-compile2 ( polygon-outline -- quot )
+  points-seq>> compile-points2 GL_LINE_LOOP <gl-obj> ; inline
+
+! should probably make circle "precision" either accessable to programmer
+! or vary due to size of cirlce -- whichever is simpler
+M:: circle gl-compile2 ( circle -- quot )
+    circle [ <circle> ] undo :> ( c r )
+    c { r 0 } slide
+    '[ 12 * deg>rad _ c rot rotate ] 30 swap map compile-points2
+    '[ GL_POLYGON _ do-state ] ; inline
+
+M: scene gl-compile2 ( scene -- gl-objs )
+     objs>> [ gl-compile2 ] map <gl-scene> ;
+
+: link2 ( scene-seq -- quot )
+     '[ drop
+        GL_PROJECTION glMatrixMode
+        glLoadIdentity
+        0 win get [ width>> ] [ height>> ] bi 0 0 1 glOrtho
+        GL_MODELVIEW glMatrixMode
+        glLoadIdentity
+        GL_DEPTH_TEST glDisable
+        win get background>> [ <rgba> ] undo glClearColor 
+        GL_COLOR_BUFFER_BIT glClear
+        _ draw-gl
+     ] ; inline
+
+! ***************
+! Renderer
+
+: render ( scene -- )
+    sg-backend get {
+        { q-backend [ gl-compile link ] }
+        { ds-backend [ gl-compile2 link2 ] }
+    } case 
+    '[ sg-gadget \ draw-gadget* create-method
+       _ define
+    ]  with-compilation-unit
+    [ sg-gadget new win get title>> open-window ] with-ui ; inline
+
+ : flatten-scene ( scene -- scene )
+  [ [ dup scene?
+    [ flatten-scene objs>> ]
+    [ 1vector ] if  ] map concat
+  ] restruct ; inline recursive
+
+: flatten-colored ( colored -- colored )
+  [ [ dup scene?
+      [ flatten-scene ]
+      [ 1vector <scene> ] if
+  ] dip
+  ] restruct  ; inline
+
+PRIVATE>
 
 ! **********************
 ! Top Level User Drawing Method
 
 : draw-in ( obj window -- )
-  win set
-  { { [ dup colored? ] [ flatten-colored ] }
-    { [ dup scene? ] [ flatten-scene ] }
-    [ 1vector <scene> ]
-  } cond
-  render ;
+  win [
+      { { [ dup colored? ] [ flatten-colored ] }
+        { [ dup scene? ] [ flatten-scene ] }
+        [ 1vector <scene> ]
+      } cond
+      render
+  ] with-variable ;
 
 : draw ( obj -- )
-     default-window draw-in ;
+    default-window draw-in ;
 
 ! make sure color compiles
 : demo ( -- )

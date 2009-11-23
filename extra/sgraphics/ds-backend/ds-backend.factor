@@ -1,10 +1,15 @@
-USING: sgraphics ;
+USING:  accessors arrays assocs classes.tuple colors
+colors.constants combinators compiler.units continuations fry
+generic grouping inverse kernel lists lists.lazy locals macros
+math math.constants math.functions math.trig math.vectors
+namespaces opengl opengl.demo-support opengl.gl opengl.glu
+parser quotations sequences sgraphics.ds-backend
+ui ui.gadgets ui.render utils vectors words words.constant ;
+QUALIFIED: math.points 
 IN: sgraphics.ds-backend
 
 ! Compiles sgraphics language to an explicit data structure
 ! That is traversed during the drawing process
-
-<PRIVATE
 
 ! treewalker
 ! walk over scene data structure instead of call quotations
@@ -133,4 +138,4 @@ M: sg-gadget pref-dim* ( gadget -- )
   ] dip
   ] restruct  ;
 
-PRIVATE>
+

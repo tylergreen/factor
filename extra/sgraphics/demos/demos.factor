@@ -25,7 +25,7 @@ IN: sgraphics.demos
     twins { 1.0 3 } scale ;
 
 : twins-flip ( -- scene )
-    twins flip-vertical merge ;
+    twins flip-vertical ;
 
 : pinwheel ( -- scene )
   4 polygon{ 50 50
