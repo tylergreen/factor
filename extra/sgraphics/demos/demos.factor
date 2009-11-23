@@ -1,13 +1,58 @@
 USING: arrays sequences kernel math math.constants
-sgraphics sgraphics.syntax sgraphics.shapes colors colors.constants fry random ;
+sgraphics sgraphics.syntax sgraphics.shapes colors colors.constants fry random grouping ;
 IN: sgraphics.demos
+
+: polygon1 ( -- polygon )
+    polygon{ -70 -20
+             -50 0
+             -30 26
+             0 40
+             80 150 } ;
+
+: twins ( -- scene )
+    polygon1 dup { 50 -70 } slide merge ;
+
+: twins2 ( -- scene )
+    twins 0 0 <point> pi rotate ;
+
+: twins-small ( -- scene )
+    twins { 0.25 0.25 } scale ;
+
+: twins-big ( -- scene )
+    twins { 1.5 1.5 } scale ;
+
+: twins-stretched ( -- scene )
+    twins { 1.0 3 } scale ;
+
+: twins-flip ( -- scene )
+    twins flip-vertical merge ;
 
 : pinwheel ( -- scene )
   4 polygon{ 50 50
            0 0
            50 0
   } [ drop 0 0 <point> pi 2 / rotate ] accumulate nip
-  <scene> ; inline
+  <scene> ; foldable
+
+: pinwheels ( -- scene )
+  { -100 100 
+    -100 -100 
+    100 100 
+    100 -100
+    0 0 
+  } 2 group
+  [  pinwheel swap slide ] map
+  <scene> ; foldable
+
+: cross ( -- scene )
+     polygon{ -150 -20
+              -150 20
+              150 20
+              150 -20
+     } dup 0 0 <point> pi 2 / rotate merge ;
+
+: cross2 ( -- scene )
+     cross dup 0 0 <point> pi 4 / rotate merge ;
  
 : bullseye ( n -- scene )
   [ [ 0 2array
@@ -35,34 +80,4 @@ IN: sgraphics.demos
   pinwheel { 80 -80 } slide
   3array <scene> ;
 
-: twins ( -- scene )
-     polygon{ 5 5
-              100 5
-              100 100
-              5 100
-     } dup { -1 -1 } scale merge ;
-
-: point>square ( point -- square )
-     dup
-     { 0 5 } 
-     { 5 5 } 
-     { 5 0 } [ slide ] tri-curry@ tri
-     4array <polygon> ;
-
-: carpet ( n -- scene )
-     dup '[ _ [ 2array ] with map ] map
-     concat [ vec>point { 30 30 } scale point>square ] map <scene>
-     dup 0 0 <point> pi rotate
-     { -10 -10 } slide
-     merge ;
-
-: cross ( -- scene )
-     polygon{ -150 -20
-              -150 20
-              150 20
-              150 -20
-     } dup 0 0 <point> pi 2 / rotate merge ;
-
-: cross2 ( -- scene )
-     cross dup 0 0 <point> pi 4 / rotate merge ;
-              
+             

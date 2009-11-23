@@ -163,15 +163,19 @@ win [ default-window ] initialize
 ! Top Level User Drawing Method
 
 : draw-in ( obj window -- )
-     win set-global 
-     dup scene?
-     [ flatten-scene ]
-     [ 1array <scene> ] if
-     render ;
+  win set
+  { { [ dup colored? ] [ flatten-colored ] }
+    { [ dup scene? ] [ flatten-scene ] }
+    [ 1vector <scene> ]
+  } cond
+  render ;
 
 : draw ( obj -- )
      default-window draw-in ;
 
-: demo ( -- ) 100 100 <point> 0 0 <point> <line> COLOR: green <colored> draw ;
+! make sure color compiles
+: demo ( -- )
+     100 100 <point> 0 0 <point> <line> COLOR: green <colored>
+     draw ;
 
 MAIN: demo
