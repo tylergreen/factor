@@ -147,12 +147,16 @@ M: circle rotate ( center radian circle -- circle ) 2drop ; inline
 ! this method is better than globals if for no other reason than 
 ! you can print out all the current settings
 
-TUPLE: window width height background title center zoom ;
+TUPLE: window
+{ size pair }
+{ center pair }
+{ background rgba }
+{ title string }
+{ zoom float } ;
 
 : default-window ( -- window )
     window new
-    300 >>width 
-    300 >>height 
+    { 300 300 } >>size
     COLOR: black  >>background 
     "SGraphics 2D" >>title 
     dup [ width>> ] [ height>> ] bi 2array [ 2.0 / ] map >>center
