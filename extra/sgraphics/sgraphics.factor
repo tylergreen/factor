@@ -164,7 +164,6 @@ win [ default-window ] initialize
 ! treewalker
 ! walk over scene data structure instead of call quotations
 
-
 TUPLE: gl-obj vertices type color ;
 : <gl-obj> ( vs type -- obj ) f gl-obj boa ;
 
@@ -282,17 +281,17 @@ M: sg-gadget pref-dim* ( gadget -- )
     ]  with-compilation-unit
     [ sg-gadget new win get title>> open-window ] with-ui ; inline
 
-PRIVATE>
-
-! **********************
-! Top Level User Drawing Method
-
 : flatten-colored ( colored -- colored )
   [ [ dup scene?
       [ flatten-scene ]
       [ 1vector <scene> ] if
   ] dip
   ] restruct  ;
+
+PRIVATE>
+
+! **********************
+! Top Level User Drawing Method
 
 : draw-in ( obj window -- )
   win set
