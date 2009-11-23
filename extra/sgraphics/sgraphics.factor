@@ -208,7 +208,7 @@ M: colored gl-compile ( colored-obj -- quot )
   [ compile-color ] bi* >>color ;
 
 M: point gl-compile ( point -- quot )
-     1array <points> gl-compile ; inline
+  1array <points> gl-compile ; inline
 
 : compile-points ( points-seq -- quot )
   [ >winpoint [ <point> ] undo '[ _ _ glVertex2f ]

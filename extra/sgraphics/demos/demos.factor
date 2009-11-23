@@ -1,5 +1,5 @@
 USING: arrays sequences kernel math math.constants
-sgraphics sgraphics.syntax sgraphics.shapes colors colors.constants fry random ;
+sgraphics sgraphics.syntax sgraphics.shapes colors colors.constants fry random grouping ;
 IN: sgraphics.demos
 
 : pinwheel ( -- scene )
@@ -7,7 +7,17 @@ IN: sgraphics.demos
            0 0
            50 0
   } [ drop 0 0 <point> pi 2 / rotate ] accumulate nip
-  <scene> ; inline
+  <scene> ; foldable
+
+: pinwheels ( -- scene )
+  { -100 100 
+    -100 -100 
+    100 100 
+    100 -100
+  } 2 group
+  [  pinwheel swap slide ] map
+  pinwheel COLOR: blue <colored> suffix
+  <scene> ; foldable
  
 : bullseye ( n -- scene )
   [ [ 0 2array
