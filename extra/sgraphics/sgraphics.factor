@@ -161,6 +161,28 @@ win [ default-window ] initialize
 
 <PRIVATE
 
+! treewalker
+! walk over scene data structure instead of call quotations
+
+TUPLE: gl-obj vertices type color ;
+: <gl-obj> ( vs type -- obj ) f gl-obj boa ;
+
+! : my-do-state ( mode verts -- )
+!     2 group swap glBegin [ glVertex2f ] assoc-each glEnd ; inline
+
+: my-do-state ( mode verts -- )
+     swap glBegin call( -- ) glEnd ; inline
+
+! can make this so it only is done when needed
+:: draw-gl ( gl-obj -- )
+     GL_CURRENT_BIT glPushAttrib
+     gl-obj color>> dup 
+     [ call( -- ) ]
+     [ drop ] if
+     gl-obj type>>
+     gl-obj vertices>> my-do-state
+     glPopAttrib ; inline
+
 ! ****************
 ! Coordinates System
 
@@ -181,33 +203,31 @@ GENERIC: gl-compile ( obj -- quot )
   [ <rgba> ] undo '[ _ _ _ _ glColor4f ] ;
 
 M: colored gl-compile ( colored-obj -- quot )
-  [ <colored> ] undo swap
-  [ compile-color ]
-  [ gl-compile ] bi*
- '[ GL_CURRENT_BIT glPushAttrib
-    @ @
-    glPopAttrib ] ; inline
+  [ <colored> ] undo
+  [ gl-compile ]
+  [ compile-color ] bi* >>color ;
 
 M: point gl-compile ( point -- quot )
-   >winpoint [ <point> ] undo '[ _ _ glVertex2f ] ; inline
+     1array <points> gl-compile ; inline
 
 : compile-points ( points-seq -- quot )
-  [ gl-compile ] map concat ; inline
+  [ >winpoint [ <point> ] undo '[ _ _ glVertex2f ]
+  ] map concat ; inline
 
 M: points gl-compile ( point-seq -- quot )
-  points-seq>> compile-points '[ GL_POINTS _ do-state ] ; inline
+  points-seq>> compile-points GL_POINTS <gl-obj> ; inline
 
 M: line gl-compile ( line -- quot )
-  [ <line> ] undo 2array compile-points '[ GL_LINES _ do-state ] ; inline
+  [ <line> ] undo 2array compile-points GL_LINES <gl-obj> ; inline
 
 M: polyline gl-compile ( polyline -- quot )
-  points-seq>> compile-points '[ GL_LINE_STRIP _ do-state ] ; inline
+  points-seq>> compile-points GL_LINE_STRIP <gl-obj> ; inline
 
 M: polygon gl-compile ( polygon -- quot )
-  points-seq>> compile-points '[ GL_POLYGON _ do-state ] ; inline
+  points-seq>> compile-points GL_POLYGON <gl-obj> ; inline
 
 M: polygon-outline gl-compile ( polygon-outline -- quot )
-  points-seq>> compile-points '[ GL_LINE_LOOP _ do-state ] ; inline
+  points-seq>> compile-points GL_LINE_LOOP <gl-obj> ; inline
 
 ! should probably make circle "precision" either accessable to programmer
 ! or vary due to size of cirlce -- whichever is simpler
@@ -217,8 +237,8 @@ M:: circle gl-compile ( circle -- quot )
     '[ 12 * deg>rad _ c rot rotate ] 30 swap map compile-points
     '[ GL_POLYGON _ do-state ] ; inline
 
-M: scene gl-compile ( scene -- quot )
-  [ <scene> ] undo [ gl-compile ] [ ] map-as concat ; inline
+M: scene gl-compile ( scene -- gl-objs )
+     objs>> [ gl-compile ] map ; inline
 
 : flatten-scene ( scene -- scene )
   [ [ dup scene?
@@ -231,20 +251,21 @@ TUPLE: sg-gadget < gadget ;
 M: sg-gadget pref-dim* ( gadget -- )
   drop win get [ width>> ] [ height>> ] bi 2array ;
 
-: link ( quot -- quot )
-  [ drop
-    GL_PROJECTION glMatrixMode
-    glLoadIdentity
-    0 win get [ width>> ] [ height>> ] bi 0 0 1 glOrtho
-    GL_MODELVIEW glMatrixMode
-    glLoadIdentity
-    GL_DEPTH_TEST glDisable
-    win get background>> [ <rgba> ] undo glClearColor 
-    GL_COLOR_BUFFER_BIT glClear
-  ] prepose ; inline
+: link ( scene-seq -- quot )
+     '[ drop
+        GL_PROJECTION glMatrixMode
+        glLoadIdentity
+        0 win get [ width>> ] [ height>> ] bi 0 0 1 glOrtho
+        GL_MODELVIEW glMatrixMode
+        glLoadIdentity
+        GL_DEPTH_TEST glDisable
+        win get background>> [ <rgba> ] undo glClearColor 
+        GL_COLOR_BUFFER_BIT glClear
+        _ [ draw-gl ] each 
+     ] ; inline
 
 : render ( scene -- )
-    gl-compile link
+     [ gl-compile ] map link
     '[ sg-gadget \ draw-gadget* create-method
        _ define
     ]  with-compilation-unit
@@ -258,13 +279,16 @@ PRIVATE>
 : draw-in ( obj window -- )
      win set-global 
      dup scene?
-     [ flatten-scene ]
-     [ 1array <scene> ] if
+     [ flatten-scene objs>> ]
+     [ 1array ] if
      render ;
 
 : draw ( obj -- )
      default-window draw-in ;
 
-: demo ( -- ) 100 100 <point> 0 0 <point> <line> COLOR: green <colored> draw ;
+! make sure color compiles
+: demo ( -- )
+     100 100 <point> 0 0 <point> <line> COLOR: green <colored>
+     draw ;
 
 MAIN: demo
