@@ -148,7 +148,7 @@ M: circle rotate ( center radian circle -- circle ) 2drop ; inline
 ! you can print out all the current settings
 
 TUPLE: window
-{ size pair initial: { 300 300 }
+{ size pair initial: { 300 300 } }
 { center pair initial: { 300 300 } }
 zoom
 { background rgba }
