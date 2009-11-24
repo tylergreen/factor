@@ -8,7 +8,7 @@ arrays kernel combinators namespaces sequences lists lists.lazy vectors
 words.constant classes.tuple
 colors colors.constants
 quotations continuations
-macros locals fry utils ;
+macros locals fry strings ;
 
 QUALIFIED: math.points
 IN: sgraphics
@@ -148,27 +148,28 @@ M: circle rotate ( center radian circle -- circle ) 2drop ; inline
 ! you can print out all the current settings
 
 TUPLE: window
-{ size pair }
-{ center pair }
+{ size pair initial: { 300 300 }
+{ center pair initial: { 300 300 } }
+zoom
 { background rgba }
-{ title string }
-{ zoom float } ;
+{ title string } ;
 
 : default-window ( -- window )
     window new
     { 300 300 } >>size
+    { 150 150 } >>center
+    1.0 >>zoom
     COLOR: black  >>background 
-    "SGraphics 2D" >>title 
-    dup [ width>> ] [ height>> ] bi 2array [ 2.0 / ] map >>center
-    1 >>zoom ;
+    "SGraphics 2D" >>title ;
 
-SYMBOL: win 
+! window variable
+SYMBOL: win
 win [ default-window ] initialize
 
 TUPLE: sg-gadget < gadget ;
 
 M: sg-gadget pref-dim* ( gadget -- )
-  drop win get [ width>> ] [ height>> ] bi 2array ;
+  drop win get size>> ;
 
 ! select which compiler backend to use
 ! ds-backend is default (builds data-structure)
@@ -243,7 +244,7 @@ M: scene gl-compile ( scene -- quot )
   [ drop
     GL_PROJECTION glMatrixMode
     glLoadIdentity
-    0 win get [ width>> ] [ height>> ] bi 0 0 1 glOrtho
+    0 win get size>> [ first ] [ second ] bi 0 0 1 glOrtho
     GL_MODELVIEW glMatrixMode
     glLoadIdentity
     GL_DEPTH_TEST glDisable
@@ -333,7 +334,7 @@ M: scene gl-compile2 ( scene -- gl-objs )
      '[ drop
         GL_PROJECTION glMatrixMode
         glLoadIdentity
-        0 win get [ width>> ] [ height>> ] bi 0 0 1 glOrtho
+        0 win get size>> [ first ] [ second ] bi 0 0 1 glOrtho
         GL_MODELVIEW glMatrixMode
         glLoadIdentity
         GL_DEPTH_TEST glDisable
