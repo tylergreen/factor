@@ -171,12 +171,7 @@ TUPLE: sg-gadget < gadget ;
 M: sg-gadget pref-dim* ( gadget -- )
   drop win get size>> ;
 
-! select which compiler backend to use
-! ds-backend is default (builds data-structure)
-SYMBOLS: sg-backend ds-backend q-backend ;
-sg-backend [ ds-backend ] initialize  
-
- <PRIVATE
+<PRIVATE
 
 ! ****************
 ! Coordinates System
@@ -188,7 +183,6 @@ M: point >winpoint ( cartesian-point -- window-coordinate )
     [ neg ] restruct
     win get zoom>> dup 2array scale
     win get center>> slide ;
-
 
 ! ***************************
 ! OpenGL Backend #1: Compiles to quotation
