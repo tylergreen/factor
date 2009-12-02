@@ -171,12 +171,7 @@ TUPLE: sg-gadget < gadget ;
 M: sg-gadget pref-dim* ( gadget -- )
   drop win get size>> ;
 
-! select which compiler backend to use
-! ds-backend is default (builds data-structure)
-SYMBOLS: sg-backend ds-backend q-backend ;
-sg-backend [ ds-backend ] initialize  
-
- <PRIVATE
+<PRIVATE
 
 ! ****************
 ! Coordinates System
@@ -189,10 +184,8 @@ M: point >winpoint ( cartesian-point -- window-coordinate )
     win get zoom>> dup 2array scale
     win get center>> slide ;
 
-
-! ***************************
-! OpenGL Backend #1: Compiles to quotation
-! Currently the slower backend
+! ****************
+! OpenGL Backend 
 
 GENERIC: gl-compile ( obj -- quot )
 
@@ -264,18 +257,18 @@ M: scene gl-compile ( scene -- quot )
     ]  with-compilation-unit
     [ sg-gadget new win get title>> open-window ] with-ui ; inline
 
- : flatten-scene ( scene -- scene )
+: flatten-scene ( scene -- scene )
   [ [ dup scene?
     [ flatten-scene objs>> ]
     [ 1vector ] if  ] map concat
   ] restruct ; inline recursive
 
-: flatten-colored ( colored -- colored )
-  [ [ dup scene?
-      [ flatten-scene ]
-      [ 1vector <scene> ] if
-  ] dip
-  ] restruct  ; inline
+: flatten-colred ( colored -- colored )
+    [ [ dup scene?
+        [ flatten-scene ]
+        [ 1vector <scene> ] if
+    ] dip
+    ] restruct 1vec ;
 
 PRIVATE>
 
@@ -300,3 +293,4 @@ PRIVATE>
      draw ;
 
 MAIN: demo
+
