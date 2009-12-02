@@ -283,11 +283,13 @@ PRIVATE>
 ! Top Level User Drawing Method
 
 : draw-in ( obj window -- )
-  win [ dup scene?
-        [ flatten-scene ] 
-        [ 1vector <scene> ] if
-        render
-  ] with-variable ;
+     win [
+          { { [ dup colored? ] [ flatten-colored ] }
+            { [ dup scene? ] [ flatten-scene ] }
+            [ 1vector <scene> ]
+          } cond 
+          render
+     ] with-variable ;
 
 : draw ( obj -- )
     default-window draw-in ;
