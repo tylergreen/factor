@@ -12,7 +12,9 @@ SYNTAX: polygon{ \ } [
 
 SYNTAX: scene{ \ } [ >array >quotation
                      { } swap with-datastack <scene>
-] parse-literal ;                  
+] parse-literal ;
+
+SYNTAX: p{ \ } [ >array vec>point ] parse-literal ;               
                
 
                  
