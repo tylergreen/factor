@@ -184,9 +184,8 @@ M: point >winpoint ( cartesian-point -- window-coordinate )
     win get zoom>> dup 2array scale
     win get center>> slide ;
 
-! ***************************
-! OpenGL Backend #1: Compiles to quotation
-! Currently the slower backend
+! ****************
+! OpenGL Backend 
 
 GENERIC: gl-compile ( obj -- quot )
 
@@ -258,18 +257,18 @@ M: scene gl-compile ( scene -- quot )
     ]  with-compilation-unit
     [ sg-gadget new win get title>> open-window ] with-ui ; inline
 
- : flatten-scene ( scene -- scene )
+: flatten-scene ( scene -- scene )
   [ [ dup scene?
     [ flatten-scene objs>> ]
     [ 1vector ] if  ] map concat
   ] restruct ; inline recursive
 
-: flatten-colored ( colored -- colored )
-  [ [ dup scene?
-      [ flatten-scene ]
-      [ 1vector <scene> ] if
-  ] dip
-  ] restruct  ; inline
+: flatten-colred ( colored -- colored )
+    [ [ dup scene?
+        [ flatten-scene ]
+        [ 1vector <scene> ] if
+    ] dip
+    ] restruct 1vec ;
 
 PRIVATE>
 
@@ -277,11 +276,13 @@ PRIVATE>
 ! Top Level User Drawing Method
 
 : draw-in ( obj window -- )
-  win [ dup scene?
-        [ flatten-scene ] 
-        [ 1vector <scene> ] if
-        render
-  ] with-variable ;
+     win [
+          { { [ dup colored? ] [ flatten-colored ] }
+            { [ dup scene? ] [ flatten-scene ] }
+            [ 1vector <scene> ]
+          } cond
+          render
+     ] with-variable ;
 
 : draw ( obj -- )
     default-window draw-in ;
@@ -292,3 +293,4 @@ PRIVATE>
      draw ;
 
 MAIN: demo
+
