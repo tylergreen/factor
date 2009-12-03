@@ -257,18 +257,18 @@ M: scene gl-compile ( scene -- quot )
     ]  with-compilation-unit
     [ sg-gadget new win get title>> open-window ] with-ui ; inline
 
-: flatten-scene ( scene -- scene )
+: flatten-scene ( scene -- vector )
   [ [ dup scene?
     [ flatten-scene objs>> ]
     [ 1vector ] if  ] map concat
   ] restruct ; inline recursive
 
-: flatten-colred ( colored -- colored )
+: flatten-colred ( colored -- vector )
     [ [ dup scene?
         [ flatten-scene ]
         [ 1vector <scene> ] if
     ] dip
-    ] restruct 1vec ;
+    ] restruct 1vector ;
 
 PRIVATE>
 
