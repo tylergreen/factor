@@ -10,8 +10,6 @@ FROM: alien.c-types => float ;
 SPECIALIZED-ARRAY: int
 SPECIALIZED-ARRAYS: bool ushort char uint float ulonglong ;
 
-[ ulonglong ] [ ulonglong-array{ } element-type ] unit-test
-
 [ t ] [ { 1 2 3 } >int-array int-array? ] unit-test
 
 [ t ] [ int-array{ 1 2 3 } int-array? ] unit-test
@@ -20,7 +18,7 @@ SPECIALIZED-ARRAYS: bool ushort char uint float ulonglong ;
 
 [ t ] [
     { t f t } >bool-array underlying>>
-    { 1 0 1 } "bool" heap-size {
+    { 1 0 1 } bool heap-size {
         { 1 [ >char-array ] }
         { 4 [ >uint-array ] }
     } case underlying>> =

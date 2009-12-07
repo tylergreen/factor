@@ -382,6 +382,16 @@ def: dst
 use: src1 src2
 literal: rep ;
 
+PURE-INSN: ##mul-high-vector
+def: dst
+use: src1 src2
+literal: rep ;
+
+PURE-INSN: ##mul-horizontal-add-vector
+def: dst
+use: src1 src2
+literal: rep ;
+
 PURE-INSN: ##saturated-mul-vector
 def: dst
 use: src1 src2
@@ -402,19 +412,29 @@ def: dst
 use: src1 src2
 literal: rep ;
 
+PURE-INSN: ##avg-vector
+def: dst
+use: src1 src2
+literal: rep ;
+
 PURE-INSN: ##dot-vector
 def: dst/scalar-rep
 use: src1 src2
 literal: rep ;
 
+PURE-INSN: ##sad-vector
+def: dst
+use: src1 src2
+literal: rep ;
+
 PURE-INSN: ##horizontal-add-vector
-def: dst/scalar-rep
-use: src
+def: dst
+use: src1 src2
 literal: rep ;
 
 PURE-INSN: ##horizontal-sub-vector
-def: dst/scalar-rep
-use: src
+def: dst
+use: src1 src2
 literal: rep ;
 
 PURE-INSN: ##horizontal-shl-vector-imm

@@ -95,7 +95,7 @@ double-rep
 vector-rep
 scalar-rep ;
 
-: unsign-rep ( rep -- rep' )
+: signed-rep ( rep -- rep' )
     {
         { uint-4-rep           int-4-rep }
         { ulonglong-2-rep      longlong-2-rep }
@@ -105,7 +105,7 @@ scalar-rep ;
         { ushort-scalar-rep    short-scalar-rep }
         { uint-scalar-rep      int-scalar-rep }
         { ulonglong-scalar-rep longlong-scalar-rep }
-    } ?at drop ;
+    } ?at drop ; foldable
 
 : widen-vector-rep ( rep -- rep' )
     {
@@ -115,7 +115,19 @@ scalar-rep ;
         { uchar-16-rep    ushort-8-rep    }
         { ushort-8-rep    uint-4-rep      }
         { uint-4-rep      ulonglong-2-rep }
-    } at ;
+        { float-4-rep     double-2-rep    }
+    } at ; foldable
+
+: narrow-vector-rep ( rep -- rep' )
+    {
+        { short-8-rep     char-16-rep     }
+        { int-4-rep       short-8-rep     }
+        { longlong-2-rep  int-4-rep       }
+        { ushort-8-rep    uchar-16-rep    }
+        { uint-4-rep      ushort-8-rep    }
+        { ulonglong-2-rep uint-4-rep      }
+        { double-2-rep    float-4-rep     }
+    } at ; foldable
 
 ! Register classes
 SINGLETONS: int-regs float-regs ;
@@ -271,14 +283,18 @@ HOOK: %add-sub-vector cpu ( dst src1 src2 rep -- )
 HOOK: %sub-vector cpu ( dst src1 src2 rep -- )
 HOOK: %saturated-sub-vector cpu ( dst src1 src2 rep -- )
 HOOK: %mul-vector cpu ( dst src1 src2 rep -- )
+HOOK: %mul-high-vector cpu ( dst src1 src2 rep -- )
+HOOK: %mul-horizontal-add-vector cpu ( dst src1 src2 rep -- )
 HOOK: %saturated-mul-vector cpu ( dst src1 src2 rep -- )
 HOOK: %div-vector cpu ( dst src1 src2 rep -- )
 HOOK: %min-vector cpu ( dst src1 src2 rep -- )
 HOOK: %max-vector cpu ( dst src1 src2 rep -- )
+HOOK: %avg-vector cpu ( dst src1 src2 rep -- )
 HOOK: %dot-vector cpu ( dst src1 src2 rep -- )
+HOOK: %sad-vector cpu ( dst src1 src2 rep -- )
 HOOK: %sqrt-vector cpu ( dst src rep -- )
-HOOK: %horizontal-add-vector cpu ( dst src rep -- )
-HOOK: %horizontal-sub-vector cpu ( dst src rep -- )
+HOOK: %horizontal-add-vector cpu ( dst src1 src2 rep -- )
+HOOK: %horizontal-sub-vector cpu ( dst src1 src2 rep -- )
 HOOK: %abs-vector cpu ( dst src rep -- )
 HOOK: %and-vector cpu ( dst src1 src2 rep -- )
 HOOK: %andn-vector cpu ( dst src1 src2 rep -- )
@@ -320,11 +336,15 @@ HOOK: %add-sub-vector-reps cpu ( -- reps )
 HOOK: %sub-vector-reps cpu ( -- reps )
 HOOK: %saturated-sub-vector-reps cpu ( -- reps )
 HOOK: %mul-vector-reps cpu ( -- reps )
+HOOK: %mul-high-vector-reps cpu ( -- reps )
+HOOK: %mul-horizontal-add-vector-reps cpu ( -- reps )
 HOOK: %saturated-mul-vector-reps cpu ( -- reps )
 HOOK: %div-vector-reps cpu ( -- reps )
 HOOK: %min-vector-reps cpu ( -- reps )
 HOOK: %max-vector-reps cpu ( -- reps )
+HOOK: %avg-vector-reps cpu ( -- reps )
 HOOK: %dot-vector-reps cpu ( -- reps )
+HOOK: %sad-vector-reps cpu ( -- reps )
 HOOK: %sqrt-vector-reps cpu ( -- reps )
 HOOK: %horizontal-add-vector-reps cpu ( -- reps )
 HOOK: %horizontal-sub-vector-reps cpu ( -- reps )
@@ -384,6 +404,10 @@ M: object %shl-vector-imm-reps { } ;
 M: object %shr-vector-imm-reps { } ;
 M: object %horizontal-shl-vector-imm-reps { } ;
 M: object %horizontal-shr-vector-imm-reps { } ;
+
+ALIAS: %merge-vector-head-reps %merge-vector-reps
+ALIAS: %merge-vector-tail-reps %merge-vector-reps
+ALIAS: %tail>head-vector-reps %unpack-vector-head-reps
 
 HOOK: %unbox-alien cpu ( dst src -- )
 HOOK: %unbox-any-c-ptr cpu ( dst src -- )

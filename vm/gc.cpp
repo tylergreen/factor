@@ -126,15 +126,6 @@ void factor_vm::start_gc_again()
 	current_gc->event = new gc_event(current_gc->op,this);
 }
 
-void factor_vm::update_code_heap_for_minor_gc(std::set<code_block *> *remembered_set)
-{
-	/* The youngest generation that any code block can now reference */
-	std::set<code_block *>::const_iterator iter = remembered_set->begin();
-	std::set<code_block *>::const_iterator end = remembered_set->end();
-
-	for(; iter != end; iter++) update_literal_references(*iter);
-}
-
 void factor_vm::gc(gc_op op, cell requested_bytes, bool trace_contexts_p)
 {
 	assert(!gc_off);
@@ -161,7 +152,7 @@ void factor_vm::gc(gc_op op, cell requested_bytes, bool trace_contexts_p)
 		break;
 	case collect_aging_op:
 		collect_aging();
-		if(data->low_memory_p())
+		if(data->high_fragmentation_p())
 		{
 			current_gc->op = collect_full_op;
 			current_gc->event->op = collect_full_op;
@@ -170,7 +161,7 @@ void factor_vm::gc(gc_op op, cell requested_bytes, bool trace_contexts_p)
 		break;
 	case collect_to_tenured_op:
 		collect_to_tenured();
-		if(data->low_memory_p())
+		if(data->high_fragmentation_p())
 		{
 			current_gc->op = collect_full_op;
 			current_gc->event->op = collect_full_op;

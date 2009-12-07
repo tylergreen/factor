@@ -40,7 +40,7 @@ SYMBOL: labels
     V{ } clone calls set ;
 
 : generate-insns ( asm -- code )
-    dup word>> [
+    dup label>> [
         init-generator
         instructions>> [
             [ class insn-counts get inc-at ]
@@ -63,7 +63,7 @@ M: ##no-tco generate-insn drop ;
 
 M: ##call generate-insn
     word>> dup sub-primitive>>
-    [ second first % ] [ [ add-call ] [ %call ] bi ] ?if ;
+    [ third first % ] [ [ add-call ] [ %call ] bi ] ?if ;
 
 M: ##jump generate-insn word>> [ add-call ] [ %jump ] bi ;
 
@@ -173,11 +173,15 @@ CODEGEN: ##add-sub-vector %add-sub-vector
 CODEGEN: ##sub-vector %sub-vector
 CODEGEN: ##saturated-sub-vector %saturated-sub-vector
 CODEGEN: ##mul-vector %mul-vector
+CODEGEN: ##mul-high-vector %mul-high-vector
+CODEGEN: ##mul-horizontal-add-vector %mul-horizontal-add-vector
 CODEGEN: ##saturated-mul-vector %saturated-mul-vector
 CODEGEN: ##div-vector %div-vector
 CODEGEN: ##min-vector %min-vector
 CODEGEN: ##max-vector %max-vector
+CODEGEN: ##avg-vector %avg-vector
 CODEGEN: ##dot-vector %dot-vector
+CODEGEN: ##sad-vector %sad-vector
 CODEGEN: ##sqrt-vector %sqrt-vector
 CODEGEN: ##horizontal-add-vector %horizontal-add-vector
 CODEGEN: ##horizontal-sub-vector %horizontal-sub-vector

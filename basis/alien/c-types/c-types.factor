@@ -297,20 +297,17 @@ M: long-long-type box-parameter ( n c-type -- )
 M: long-long-type box-return ( c-type -- )
     f swap box-parameter ;
 
-: define-deref ( name -- )
-    [ CHAR: * prefix "alien.c-types" create ] [ c-getter 0 prefix ] bi
+: define-deref ( c-type -- )
+    [ name>> CHAR: * prefix "alien.c-types" create ] [ c-getter 0 prefix ] bi
     (( c-ptr -- value )) define-inline ;
 
-: define-out ( name -- )
-    [ "alien.c-types" constructor-word ]
+: define-out ( c-type -- )
+    [ name>> "alien.c-types" constructor-word ]
     [ dup c-setter '[ _ heap-size (byte-array) [ 0 @ ] keep ] ] bi
     (( value -- c-ptr )) define-inline ;
 
 : define-primitive-type ( c-type name -- )
-    [ typedef ]
-    [ name>> define-deref ]
-    [ name>> define-out ]
-    tri ;
+    [ typedef ] [ define-deref ] [ define-out ] tri ;
 
 : if-void ( c-type true false -- )
     pick void? [ drop nip call ] [ nip call ] if ; inline
@@ -541,6 +538,9 @@ M: ulonglong-2-rep rep-component-type drop ulonglong ;
 M: float-4-rep rep-component-type drop float ;
 M: double-2-rep rep-component-type drop double ;
 
+: rep-length ( rep -- n )
+    16 swap rep-component-type heap-size /i ; foldable
+
 : (unsigned-interval) ( bytes -- from to ) [ 0 ] dip 8 * 2^ 1 - ; foldable
 : unsigned-interval ( c-type -- from to ) heap-size (unsigned-interval) ; foldable
 : (signed-interval) ( bytes -- from to ) 8 * 1 - 2^ [ neg ] [ 1 - ] bi ; foldable
@@ -553,4 +553,6 @@ M: double-2-rep rep-component-type drop double ;
         { [ dup { uchar ushort uint ulong ulonglong } member-eq? ] [ unsigned-interval ] }
     } cond ; foldable
 
-: c-type-clamp ( value c-type -- value' ) c-type-interval clamp ; inline
+: c-type-clamp ( value c-type -- value' )
+    dup { float double } member-eq?
+    [ drop ] [ c-type-interval clamp ] if ; inline

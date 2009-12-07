@@ -98,6 +98,11 @@ void data_heap::reset_generation(tenured_space *gen)
 	clear_decks(gen);
 }
 
+bool data_heap::high_fragmentation_p()
+{
+	return (tenured->largest_free_block() <= nursery->size + aging->size);
+}
+
 bool data_heap::low_memory_p()
 {
 	return (tenured->free_space() <= nursery->size + aging->size);
@@ -217,7 +222,7 @@ data_heap_room factor_vm::data_room()
 	room.tenured_free_block_count = data->tenured->free_block_count();
 	room.cards                    = data->cards_end - data->cards;
 	room.decks                    = data->decks_end - data->decks;
-	room.mark_stack               = data->tenured->mark_stack.capacity() * sizeof(cell);
+	room.mark_stack               = mark_stack.capacity() * sizeof(cell);
 
 	return room;
 }
