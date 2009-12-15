@@ -92,19 +92,20 @@ M: line transform
 : scale ( obj scalar -- obj )
      dup 2array skew ;
 
-! moves point as if center were the origin, then moves the point back
 :: rotate-point ( point center radian -- point )
-    radian sin :> s 
-    radian cos :> c
-    center x>> :> xc 
-    center y>> :> yc 
-    point x>> xc - :> x1 
-    point y>> yc - :> y1 
-    x1 c * y1 s * + :> x2
-    y1 c * x1 s * - :> y2 
-    x2 xc + :> x
-    y2 yc + :> y 
-    x y <point>  ; inline
+     #! moves point as if center were the origin, then moves the point back
+     #! could be a lot simpler
+     radian sin :> s 
+     radian cos :> c
+     center x>> :> xc 
+     center y>> :> yc 
+     point x>> xc - :> x1 
+     point y>> yc - :> y1 
+     x1 c * y1 s * + :> x2
+     y1 c * x1 s * - :> y2 
+     x2 xc + :> x
+     y2 yc + :> y 
+     x y <point>  ; inline
 
 : rotate ( obj center radian -- obj )
      '[ _ _ rotate-point ] transform ; inline
