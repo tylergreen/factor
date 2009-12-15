@@ -65,50 +65,32 @@ TUPLE: scene { objs vector } ;
 ! ************
 ! Manipulation
 
-GENERIC# slide 1 ( obj vector -- obj )
+GENERIC# transform 1 ( shape quot -- shape )
+M: point transform
+     call( x -- y ) ; inline
 
-M: point slide ( point 2array -- point )
-  v+ vec>point ; inline
+M: points transform
+     '[ _ map ] restruct ; inline
 
-M: points slide ( points 2array -- points )
-   '[ [ _ slide ] map ] restruct ; inline
+M: scene transform
+     '[ _ map ] restruct ; inline
 
-M: scene slide ( scene 2array -- scene )
-  '[ [ _ slide ] map ] restruct ; inline
+M: colored transform 
+     '[ _ dip ] restruct ; inline
 
-M: colored slide ( colored 2array -- colored )
-  '[ [ _ slide ] dip ] restruct ; inline
+M: line transform
+     '[ _ bi@ ] restruct ; inline
 
-M: circle slide ( circle 2array -- circle )
-  '[ [ _ slide ] dip ] restruct ; inline
+! circle
 
-M: line slide ( line 2array -- line )
-  '[ [ _ slide ] bi@ ] restruct ; inline
+: slide ( obj vector -- obj )
+     '[ _ v+ vec>point ] transform ; inline
 
-GENERIC# scale 1 ( shape vector -- shape )
-
-M: point scale ( point pair -- point )
-  v* vec>point ;
-
-M: scene scale ( scene v -- scene )
-  '[ [ _ scale ] map ] restruct ;
-
-M: points scale ( points v -- points )
-  '[ [ _ scale ] map ] restruct ;
-
-M: line scale ( line v -- line )
-  '[ [ _ scale ] bi@ ] restruct ;
- 
-M: circle scale ( circle v -- circle )
-     dup '[ [ _ scale ] [ _ first * ] bi* ] restruct ;
-
-M: colored scale ( colored n -- colored )
-     '[ [ _ scale ] dip ] restruct ;
-
-GENERIC# rotate 2 ( obj center radian -- obj )
+: scale ( obj vector -- obj )
+     '[ _ v* vec>point ] transform ; inline
 
 ! moves point as if center were the origin, then moves the point back
-M:: point rotate ( point center radian -- point )
+:: rotate-point ( point center radian -- point )
     radian sin :> s 
     radian cos :> c
     center x>> :> xc 
@@ -119,27 +101,16 @@ M:: point rotate ( point center radian -- point )
     y1 c * x1 s * - :> y2 
     x2 xc + :> x
     y2 yc + :> y 
-    x y <point>  ;
+    x y <point>  ; inline
 
-M: points rotate ( points center radian -- point )
-  '[ [ _ _ rotate ] map ] restruct ;
-  
-M: line rotate ( line center radian -- line )
-  '[ [ _ _ rotate ] bi@ ] restruct ;
-
-M: colored rotate ( colored center radian -- colored )
-  '[ [ _ _ rotate ] dip ] restruct ;
-
-M: scene rotate ( scene center radian -- scene )
-  '[ [ _ _ rotate ] map ] restruct ; inline
-
-M: circle rotate ( center radian circle -- circle ) 2drop ; inline
+: rotate ( obj center radian -- obj )
+     '[ _ _ rotate-point ] transform ; inline
 
 : flip-horizontal ( obj -- obj )
-     { -1 1 } scale ;
+     { -1 1 } scale ; inline
 
 : flip-vertical ( obj -- obj )
-     { 1 -1 } scale ;
+     { 1 -1 } scale ; inline
 
 ! ****************
 ! Window Parameters
