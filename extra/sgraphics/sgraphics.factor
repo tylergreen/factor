@@ -263,7 +263,7 @@ M: scene gl-compile ( scene -- quot )
     [ 1vector ] if  ] map concat
   ] restruct ; inline recursive
 
-: flatten-colred ( colored -- vector )
+: flatten-colored ( colored -- vector )
     [ [ dup scene?
         [ flatten-scene ]
         [ 1vector <scene> ] if
