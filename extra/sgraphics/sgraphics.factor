@@ -86,8 +86,11 @@ M: line transform
 : slide ( obj vector -- obj )
      '[ _ v+ vec>point ] transform ; inline
 
-: scale ( obj vector -- obj )
+: skew ( obj vector -- obj )
      '[ _ v* vec>point ] transform ; inline
+
+: scale ( obj scalar -- obj )
+     dup 2array skew ;
 
 ! moves point as if center were the origin, then moves the point back
 :: rotate-point ( point center radian -- point )
