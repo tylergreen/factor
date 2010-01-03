@@ -22,10 +22,11 @@ struct quotation_jit : public jit {
 	bool fast_3dip_p(cell i, cell length);
 	bool mega_lookup_p(cell i, cell length);
 	bool declare_p(cell i, cell length);
+	bool word_stack_frame_p(cell obj);
 	bool stack_frame_p();
 	void iterate_quotation();
 };
 
-VM_ASM_API cell lazy_jit_compile_impl(cell quot, stack_frame *stack, factor_vm *parent);
+VM_C_API cell lazy_jit_compile(cell quot, factor_vm *parent);
 
 }

@@ -3,8 +3,9 @@
 namespace factor
 {
 
-THREADHANDLE start_thread(void *(*start_routine)(void *),void *args){
-    return (void*) CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)start_routine, args, 0, 0); 
+THREADHANDLE start_thread(void *(*start_routine)(void *), void *args)
+{
+	return (void *)CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)start_routine, args, 0, 0);
 }
 
 DWORD dwTlsIndex; 
@@ -36,10 +37,14 @@ u64 system_micros()
 		- EPOCH_OFFSET) / 10;
 }
 
+/* On VirtualBox, QueryPerformanceCounter does not increment
+the high part every time the low part overflows.  Workaround. */
 u64 nano_count()
 {
 	LARGE_INTEGER count;
 	LARGE_INTEGER frequency;
+	static u32 hi = 0;
+	static u32 lo = 0;
 	BOOL ret;
 	ret = QueryPerformanceCounter(&count);
 	if(ret == 0)
@@ -47,8 +52,12 @@ u64 nano_count()
 	ret = QueryPerformanceFrequency(&frequency);
 	if(ret == 0)
 		fatal_error("QueryPerformanceFrequency", 0);
-	
-	return count.QuadPart*(1000000000/frequency.QuadPart);
+
+	if(count.LowPart < lo)
+		hi += 1;
+	lo = count.LowPart;
+
+	return (u64)((((u64)hi << 32) | (u64)lo)*(1000000000.0/frequency.QuadPart));
 }
 
 void sleep_nanos(u64 nsec)

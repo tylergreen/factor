@@ -104,16 +104,24 @@ void inline_cache_jit::compile_inline_cache(fixnum index,
 		emit_with_literal(parent->special_objects[PIC_HIT],method);
 	}
 
-	/* Generate machine code to handle a cache miss, which ultimately results in
-	   this function being called again.
+	/* If none of the above conditionals tested true, then execution "falls
+	   through" to here. */
 
-	   The inline-cache-miss primitive call receives enough information to
-	   reconstruct the PIC. */
+	/* A stack frame is set up, since the inline-cache-miss sub-primitive
+	makes a subroutine call to the VM. */
+	emit(parent->special_objects[JIT_PROLOG]);
+
+	/* The inline-cache-miss sub-primitive call receives enough information to
+	   reconstruct the PIC with the new entry. */
 	push(generic_word.value());
 	push(methods.value());
 	push(tag_fixnum(index));
 	push(cache_entries.value());
-	word_special(parent->special_objects[tail_call_p ? PIC_MISS_TAIL_WORD : PIC_MISS_WORD]);
+
+	emit_subprimitive(
+		parent->special_objects[tail_call_p ? PIC_MISS_TAIL_WORD : PIC_MISS_WORD],
+		true, /* tail_call_p */
+		true); /* stack_frame_p */
 }
 
 code_block *factor_vm::compile_inline_cache(fixnum index,
@@ -180,14 +188,21 @@ to take care of the details. */
 void *factor_vm::inline_cache_miss(cell return_address_)
 {
 	code_root return_address(return_address_,this);
-
 	check_code_pointer(return_address.value);
+	bool tail_call_site = tail_call_site_p(return_address.value);
 
-	data_root<array> cache_entries(dpop(),this);
-	fixnum index = untag_fixnum(dpop());
-	data_root<array> methods(dpop(),this);
-	data_root<word> generic_word(dpop(),this);
-	data_root<object> object(((cell *)ds)[-index],this);
+#ifdef PIC_DEBUG
+	std::cout << "Inline cache miss at "
+		<< (tail_call_site ? "tail" : "non-tail")
+		<< " call site 0x" << std::hex << return_address.value << std::dec
+		<< std::endl;
+#endif
+
+	data_root<array> cache_entries(ctx->pop(),this);
+	fixnum index = untag_fixnum(ctx->pop());
+	data_root<array> methods(ctx->pop(),this);
+	data_root<word> generic_word(ctx->pop(),this);
+	data_root<object> object(((cell *)ctx->datastack)[-index],this);
 
 	cell pic_size = inline_cache_size(cache_entries.value());
 
@@ -203,14 +218,15 @@ void *factor_vm::inline_cache_miss(cell return_address_)
 		cell method = lookup_method(object.value(),methods.value());
 
 		data_root<array> new_cache_entries(add_inline_cache_entry(
-							   cache_entries.value(),
-							   klass,
-							   method),this);
+			cache_entries.value(),
+			klass,
+			method),this);
+
 		xt = compile_inline_cache(index,
-					  generic_word.value(),
-					  methods.value(),
-					  new_cache_entries.value(),
-					  tail_call_site_p(return_address.value))->xt();
+			generic_word.value(),
+			methods.value(),
+			new_cache_entries.value(),
+			tail_call_site)->xt();
 	}
 
 	/* Install the new stub. */
@@ -224,9 +240,9 @@ void *factor_vm::inline_cache_miss(cell return_address_)
 
 #ifdef PIC_DEBUG
 		std::cout << "Updated "
-			<< (tail_call_site_p(return_address.value) ? "tail" : "non-tail")
+			<< (tail_call_site ? "tail" : "non-tail")
 			<< " call site 0x" << std::hex << return_address.value << std::dec
-			<< " with " << std::hex << (cell)xt << std::dec << "\n";
+			<< " with 0x" << std::hex << (cell)xt << std::dec << std::endl;
 #endif
 	}
 

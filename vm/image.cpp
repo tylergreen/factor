@@ -182,7 +182,7 @@ struct code_block_fixup_relocation_visitor {
 
 		switch(op.rel_type())
 		{
-		case RT_IMMEDIATE:
+		case RT_LITERAL:
 			op.store_value(data_visitor.visit_pointer(op.load_value(old_offset)));
 			break;
 		case RT_XT:
@@ -314,7 +314,7 @@ void factor_vm::primitive_save_image()
 	/* do a full GC to push everything into tenured space */
 	primitive_compact_gc();
 
-	data_root<byte_array> path(dpop(),this);
+	data_root<byte_array> path(ctx->pop(),this);
 	path.untag_check(this);
 	save_image((vm_char *)(path.untagged() + 1));
 }
@@ -324,7 +324,7 @@ void factor_vm::primitive_save_image_and_exit()
 	/* We unbox this before doing anything else. This is the only point
 	where we might throw an error, so we have to throw an error here since
 	later steps destroy the current image. */
-	data_root<byte_array> path(dpop(),this);
+	data_root<byte_array> path(ctx->pop(),this);
 	path.untag_check(this);
 
 	/* strip out special_objects data which is set on startup anyway */

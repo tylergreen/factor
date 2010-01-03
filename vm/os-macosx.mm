@@ -14,12 +14,12 @@ NS_DURING
 		c_to_factor(quot,this);
 		NS_VOIDRETURN;
 NS_HANDLER
-		dpush(allot_alien(false_object,(cell)localException));
+		ctx->push(allot_alien(false_object,(cell)localException));
 		quot = special_objects[OBJ_COCOA_EXCEPTION];
 		if(!tagged<object>(quot).type_p(QUOTATION_TYPE))
 		{
 			/* No Cocoa exception handler was registered, so
-			extra/cocoa/ is not loaded. So we pass the exception
+			basis/cocoa/ is not loaded. So we pass the exception
 			along. */
 			[localException raise];
 		}
@@ -31,7 +31,7 @@ void early_init(void)
 {
 	SInt32 version;
 	Gestalt(gestaltSystemVersion,&version);
-	if(version <= 0x1050)
+	if(version < 0x1050)
 	{
 		printf("Factor requires Mac OS X 10.5 or later.\n");
 		exit(1);

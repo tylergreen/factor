@@ -1002,7 +1002,7 @@ HELP: pusher
            "10 [ even? ] pusher [ each ] dip ."
            "V{ 0 2 4 6 8 }"
 }
-{ $notes "Used to implement the " { $link filter } " word." } ;
+{ $notes "Used to implement the " { $link filter } " word. Compare this word with " { $link accumulator } ", which is an unfiltering version." } ;
 
 HELP: trim-head
 { $values
@@ -1191,7 +1191,8 @@ HELP: 2map-reduce
 { $values
      { "seq1" sequence } { "seq2" sequence } { "map-quot" quotation } { "reduce-quot" quotation }
      { "result" object } }
-{ $description "Unclips the first element of each sequence and calls " { $snippet "map-quot" } " on both objects. The result of this calculation is passed, along with the rest of both sequences, to " { $link 2reduce } ", with the computed object as the identity." }
+ { $description "Calls " { $snippet "map-quot" } " on each pair of elements from " { $snippet "seq1" } " and " { $snippet "seq2" } " and combines the results using " { $snippet "reduce-quot" } " in the same manner as " { $link reduce } ", except that there is no identity element, and the sequence must have a length of at least 1." }
+{ $errors "Throws an error if the sequence is empty." }
 { $examples { $example "USING: sequences prettyprint math ;"
     "{ 10 30 50 } { 200 400 600 } [ + ] [ + ] 2map-reduce ."
     "1290"
@@ -1289,7 +1290,8 @@ HELP: map-reduce
 { $values
      { "seq" sequence } { "map-quot" quotation } { "reduce-quot" quotation }
      { "result" object } }
-{ $description "Unclips the first element of the sequence, calls " { $snippet "map-quot" } " on that element, and proceeds like a " { $link reduce } ", where the calculated element is the identity element and the rest of the sequence is the sequence to reduce." }
+{ $description "Calls " { $snippet "map-quot" } " on each element and combines the results using " { $snippet "reduce-quot" } " in the same manner as " { $link reduce } ", except that there is no identity element, and the sequence must have a length of at least 1." }
+{ $errors "Throws an error if the sequence is empty." }
 { $examples { $example "USING: sequences prettyprint math ;"
     "{ 1 3 5 } [ sq ] [ + ] map-reduce ."
     "35"
@@ -1671,6 +1673,19 @@ ARTICLE: "sequences-comparing" "Comparing sequences"
 ARTICLE: "sequences-f" "The f object as a sequence"
 "The " { $link f } " object supports the sequence protocol in a trivial way. It responds with a length of zero and throws an out of bounds error when an attempt is made to access elements." ;
 
+ARTICLE: "sequences-combinator-implementation" "Implementing sequence combinators"
+"Creating a new sequence unconditionally:"
+{ $subsections
+    accumulator
+    accumulator-for
+}
+"Creating a new sequence conditionally:"
+{ $subsections
+    pusher
+    pusher-for
+    2pusher
+} ;
+
 ARTICLE: "sequences" "Sequence operations"
 "A " { $emphasis "sequence" } " is a finite, linearly-ordered collection of elements. Words for working with sequences are in the " { $vocab-link "sequences" } " vocabulary."
 $nl
@@ -1708,6 +1723,8 @@ $nl
 "Using sequences for control flow:"
 { $subsections "sequences-if" }
 "For inner loops:"
-{ $subsections "sequences-unsafe" } ;
+{ $subsections "sequences-unsafe" }
+"Implemeting sequence combinators:"
+{ $subsections "sequences-combinator-implementation" } ;
 
 ABOUT: "sequences"

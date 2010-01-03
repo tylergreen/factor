@@ -5,7 +5,7 @@ namespace factor
 
 code_heap::code_heap(cell size)
 {
-	if(size > (1L << (sizeof(cell) * 8 - 6))) fatal_error("Heap too large",size);
+	if(size > ((u64)1 << (sizeof(cell) * 8 - 6))) fatal_error("Heap too large",size);
 	seg = new segment(align_page(size),true);
 	if(!seg) fatal_error("Out of memory in heap allocator",size);
 	allocator = new free_list_allocator<code_block>(size,seg->start);
@@ -96,7 +96,7 @@ void factor_vm::update_code_heap_words()
 
 void factor_vm::primitive_modify_code_heap()
 {
-	data_root<array> alist(dpop(),this);
+	data_root<array> alist(ctx->pop(),this);
 
 	cell count = array_capacity(alist.untagged());
 
@@ -163,7 +163,7 @@ code_heap_room factor_vm::code_room()
 void factor_vm::primitive_code_room()
 {
 	code_heap_room room = code_room();
-	dpush(tag<byte_array>(byte_array_from_value(&room)));
+	ctx->push(tag<byte_array>(byte_array_from_value(&room)));
 }
 
 struct stack_trace_stripper {
