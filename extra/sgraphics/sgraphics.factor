@@ -65,6 +65,8 @@ TUPLE: scene { objs vector } ;
 ! ************
 ! Manipulation
 
+! I think this can be changed to compile time macro
+
 GENERIC# transform 1 ( shape quot -- shape )
 M: point transform
      call( x -- y ) ; inline
@@ -87,7 +89,7 @@ M: line transform
      '[ _ v+ vec>point ] transform ; inline
 
 : skew ( obj vector -- obj )
-     '[ _ v* vec>point ] transform ; inline
+      '[ _ v* vec>point ] transform ; inline
 
 : scale ( obj scalar -- obj )
      dup 2array skew ;
@@ -95,17 +97,17 @@ M: line transform
 :: rotate-point ( point center radian -- point )
      #! moves point as if center were the origin, then moves the point back
      #! could be a lot simpler
-     radian sin :> s 
+     radian sin :> s
      radian cos :> c
      center x>> :> xc 
-     center y>> :> yc 
+     center y>> :> yc
      point x>> xc - :> x1 
-     point y>> yc - :> y1 
+     point y>> yc - :> y1
      x1 c * y1 s * + :> x2
-     y1 c * x1 s * - :> y2 
+     y1 c * x1 s * - :> y2
      x2 xc + :> x
-     y2 yc + :> y 
-     x y <point>  ; inline
+     y2 yc + :> y
+     x y <point> ; inline
 
 : rotate ( obj center radian -- obj )
      '[ _ _ rotate-point ] transform ; inline
@@ -125,9 +127,10 @@ M: line transform
 TUPLE: window
 { size pair initial: { 300 300 } }
 { center pair initial: { 300 300 } }
-zoom
+{ zoom pair initial: { {  }
 { background rgba }
 { title string } ;
+
 
 : default-window ( -- window )
     window new
@@ -232,7 +235,7 @@ M: scene gl-compile ( scene -- quot )
     ]  with-compilation-unit
     [ sg-gadget new win get title>> open-window ] with-ui ; inline
 
-: flatten-scene ( scene -- vector )
+: flatten-scene ( scene -- scene )
   [ [ dup scene?
     [ flatten-scene objs>> ]
     [ 1vector ] if  ] map concat
@@ -243,7 +246,7 @@ M: scene gl-compile ( scene -- quot )
         [ flatten-scene ]
         [ 1vector <scene> ] if
     ] dip
-    ] restruct 1vector ;
+    ] restruct 1vector <scene> ;
 
 PRIVATE>
 

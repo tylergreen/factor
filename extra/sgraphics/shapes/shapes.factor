@@ -33,4 +33,16 @@ TUPLE: square < rectangle ;
 : line-len ( line -- length )
   [ <line> ] undo distance ;
 
+! ****************
+! Regular Polygons
+
+: <ngon> ( n -- polygon )
+    ;
+
+: apothem ( regular-polygon -- line )
+#! The apothem of a regular polygon is a line segment from the center to the midpoint of one of its sides.
+    ;
+
+
+
 
