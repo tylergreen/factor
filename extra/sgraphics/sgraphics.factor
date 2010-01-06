@@ -127,22 +127,23 @@ M: line transform
 ! support multiple way to specify windows
 
 
-! square windows that are zoom distance in real numbers around center
+! square windows that are sgdim distance in real numbers around center
 ! example
 ! 
 
 TUPLE: window
-{ winsize pair initial: { 300 300 } }
+{ gldim pair initial: { 300 300 } }
 { center pair initial: { 300 300 } }
-zoom 
+{ sgdim pair initial: { 10 10 } }
 { background rgba }
 { title string } ;
 
+
 : default-window ( -- window )
     window new
-    { 300 300 } >>winsize
+    { 300 300 } >>gldim
     { 0 0 } >>center
-    150.0 >>zoom
+    { 10 10 } >>sgdim
     COLOR: black  >>background 
     "SGraphics 2D" >>title ;
 
@@ -153,7 +154,7 @@ win [ default-window ] initialize
 TUPLE: sg-gadget < gadget ;
 
 M: sg-gadget pref-dim* ( gadget -- )
-  drop win get winsize>> ;
+  drop win get gldim>> ;
 
 <PRIVATE
 
@@ -162,11 +163,23 @@ M: sg-gadget pref-dim* ( gadget -- )
 
 GENERIC: >winpoint ( x -- y )
 
+
+! I don't understand this at all
+! might want to change this to a generic later
+! M: point >winpoint ( cartesian-point -- window-coordinate )
+!      #! slide points up and right sgdim/2 distance for primitive window system
+!     flip-vertical win get sgdim>> scale ;
+
+: gl-center ( pair -- pair )
+     0.5 swap n*v ;
+
+! I don't understand this at all
 ! might want to change this to a generic later
 M: point >winpoint ( cartesian-point -- window-coordinate )
-     #! slide points up and right zoom/2 distance for primitive window system
-    flip-vertical
-    win get zoom>> dup 2array [ 2 / ] map slide ;
+     #! slide points up and right sgdim/2 distance for primitive window system
+     flip-vertical 
+     win get [ gldim>> ] [ sgdim>> ] bi v/ 0.5 swap n*v skew 
+     win get gldim>> gl-center slide ;
 
 ! ****************
 ! OpenGL Backend 
@@ -222,7 +235,7 @@ M: scene gl-compile ( scene -- quot )
   '[ drop
     GL_PROJECTION glMatrixMode
     glLoadIdentity
-    0 win get winsize>> [ first ] [ second ] bi 0 0 1 glOrtho
+    0 win get gldim>> [ first ] [ second ] bi 0 0 1 glOrtho
     GL_MODELVIEW glMatrixMode
     glLoadIdentity
     GL_DEPTH_TEST glDisable
