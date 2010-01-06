@@ -193,9 +193,9 @@ M: colored gl-compile ( colored-obj -- quot )
   [ <colored> ] undo swap
   [ compile-color ]
   [ gl-compile ] bi*
- '[ GL_CURRENT_BIT glPushAttrib
+  '[ GL_CURRENT_BIT glPushAttrib 
     @ @
-    glPopAttrib ] ; inline
+     glPopAttrib ] ; inline
 
 M: point gl-compile ( point -- quot )
    >winpoint [ <point> ] undo '[ _ _ glVertex2f ] ; inline
@@ -228,8 +228,14 @@ M:: circle gl-compile ( circle -- quot )
 
 ! need to change merge for this
 ! -- scene should be immediately flattened 
-M: scene gl-compile ( scene -- quot )
-     [ <scene> ] undo [ gl-compile ] { } map-as ; inline
+! M: scene gl-compile ( scene -- quot )
+!  [ <scene> ] undo [ gl-compile ] [ ] map-as ; inline
+
+! need to change merge for this
+! -- scene should be immediately flattened 
+: gl-compile-scene ( scene -- seq )
+  
+  [ <scene> ] undo [ gl-compile ] { } map-as ; inline
 
 : link ( compiled-seq -- quot )
   '[ drop
@@ -247,8 +253,14 @@ M: scene gl-compile ( scene -- quot )
 ! ***************
 ! Renderer
 
+! need to fix how colors are compile in
+! scenes are the only compound object
+: ensure-scene ( obj -- scene )
+  dup scene?
+  [ 1vector <scene> ] unless ;
+
 : render ( scene -- )
-     gl-compile link
+  gl-compile-scene link
     '[ sg-gadget \ draw-gadget* create-method
        _ define
     ]  with-compilation-unit
@@ -260,6 +272,7 @@ M: scene gl-compile ( scene -- quot )
     [ 1vector ] if  ] map concat
   ] restruct ; inline recursive
 
+! wrong
 : flatten-colored ( colored -- vector )
     [ [ dup scene?
         [ flatten-scene ]
@@ -274,20 +287,20 @@ PRIVATE>
 
 : draw-in ( obj window -- )
      win [
-          { { [ dup colored? ] [ flatten-colored ] }
-            { [ dup scene? ] [ flatten-scene ] }
-            [ 1vector <scene> ]
-          } cond 
-          render
+       dup scene?
+       [ 1vector <scene> ] unless
+       render
      ] with-variable ;
-
+   
 : draw ( obj -- )
     default-window draw-in ;
 
+: gline   ( -- line )
+  100 100 <point> 0 0 <point> <line> COLOR: green <colored> ;
+
 ! make sure color compiles
 : demo ( -- )
-     100 100 <point> 0 0 <point> <line> COLOR: green <colored>
-     draw ;
+  gline draw ;
 
 MAIN: demo
 
