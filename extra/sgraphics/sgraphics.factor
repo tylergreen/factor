@@ -43,7 +43,6 @@ C: <polygon-outline> polygon-outline
 
 TUPLE: colored obj color ;
 C: <colored> colored
-
 TUPLE: scene { objs vector } ;
 : <scene> ( array -- scene )  >vector scene boa ;
 
@@ -64,12 +63,21 @@ TUPLE: scene { objs vector } ;
      [ tuple>array unclip swap ] dip map
      swap prefix >tuple ; inline
 
+: remapconcat ( obj quot -- y )
+     [ tuple>array unclip swap ] dip map concat
+     swap prefix >tuple ; inline
+
 ! assumes leaves are all the same
 ! this could be improved
+! generalized to handle sequences too
 :: twalk ( obj pred quot -- obj )
-     obj pred call( x -- y )
-     [ obj quot call( x -- y ) ]
-     [ obj [ pred quot twalk ] remap ] if ; inline recursive
+     { { [ obj pred call( x -- y ) ]
+         [ obj quot call( x -- y ) ] }
+       { [ obj sequence? ] 
+         [ obj [ pred quot twalk ] map ]
+       }
+       [ obj [ pred quot twalk ] remap ]
+     } cond ; inline recursive
 
 : slope ( line -- float )
   [ <line> ] undo [ point>vec ] bi@ math.points:slope ;
@@ -170,7 +178,6 @@ M: sg-gadget pref-dim* ( gadget -- )
 
 GENERIC: >winpoint ( x -- y )
 
-
 ! I don't understand this at all
 ! might want to change this to a generic later
 ! M: point >winpoint ( cartesian-point -- window-coordinate )
@@ -200,9 +207,9 @@ M: colored gl-compile ( colored-obj -- quot )
   [ <colored> ] undo swap
   [ compile-color ]
   [ gl-compile ] bi*
-  '[ GL_CURRENT_BIT glPushAttrib 
-    @ @
-     glPopAttrib ] ; inline
+  '[ [ GL_CURRENT_BIT glPushAttrib ]
+    _ _
+     [ glPopAttrib ] ] ; inline
 
 M: point gl-compile ( point -- quot )
    >winpoint [ <point> ] undo '[ _ _ glVertex2f ] ; inline
@@ -240,9 +247,8 @@ M:: circle gl-compile ( circle -- quot )
 
 ! need to change merge for this
 ! -- scene should be immediately flattened 
-: gl-compile-scene ( scene -- seq )
-  
-  [ <scene> ] undo [ gl-compile ] { } map-as ; inline
+M: scene gl-compile ( scene -- quot )
+     [ <scene> ] undo [ gl-compile ] [ ] map-as concat ; inline
 
 : link ( compiled-seq -- quot )
   '[ drop
@@ -260,32 +266,22 @@ M:: circle gl-compile ( circle -- quot )
 ! ***************
 ! Renderer
 
-! need to fix how colors are compile in
-! scenes are the only compound object
-: ensure-scene ( obj -- scene )
-  dup scene?
-  [ 1vector <scene> ] unless ;
+! this is ridiculous.  Colored scene ruin everything
+: flatten-scene ( obj -- seq )
+     { { [ dup scene? ]
+         [ objs>> [ flatten-scene ] map concat ]  }
+       { [ dup colored? ]
+         [ [ [ flatten-scene <scene> ] dip ] restruct 1array ] }
+       [ 1array ]
+     } cond >vector ; inline recursive
 
-: render ( scene -- )
-  gl-compile-scene link
+: render ( obj -- )
+     flatten-scene <scene>
+     gl-compile >array link
     '[ sg-gadget \ draw-gadget* create-method
        _ define
     ]  with-compilation-unit
     [ sg-gadget new win get title>> open-window ] with-ui ; inline
-
-: flatten-scene ( scene -- scene )
-  [ [ dup scene?
-    [ flatten-scene objs>> ]
-    [ 1vector ] if  ] map concat
-  ] restruct ; inline recursive
-
-! wrong
-: flatten-colored ( colored -- vector )
-    [ [ dup scene?
-        [ flatten-scene ]
-        [ 1vector <scene> ] if
-    ] dip
-    ] restruct 1vector <scene> ;
 
 PRIVATE>
 

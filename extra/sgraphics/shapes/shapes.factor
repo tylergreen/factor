@@ -24,7 +24,6 @@ TUPLE: square < rectangle ;
 : size ( square -- point )
     points-seq>> [ first ] [ second ] bi distance ;
 
-
 ! *******
 ! Lines 
 : bisect ( line -- half1 half2 )

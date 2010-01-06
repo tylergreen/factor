@@ -16,13 +16,13 @@ IN: sgraphics.demos
     twins 0 0 <point> pi rotate ;
 
 : twins-small ( -- scene )
-    twins { 0.25 0.25 } scale ;
+    twins { 0.25 0.25 } skew ;
 
 : twins-big ( -- scene )
-    twins { 1.5 1.5 } scale ;
+    twins { 1.5 1.5 } skew ;
 
 : twins-stretched ( -- scene )
-    twins { 1.0 3 } scale ;
+    twins { 1.0 3 } skew ;
 
 : twins-flip ( -- scene )
     twins flip-vertical ;
@@ -59,11 +59,11 @@ IN: sgraphics.demos
 : bullseye ( n -- scene )
   [ [ 0 2array
       0 0 <point> 5 <circle>
-      swap scale ]
+      swap skew ]
     [ 3 mod 
       { "red"
         "green"
-        "yellow" } [ named-color ] map nth 
+        "yellow" } [ named-color ] map nth
     ] bi <colored>
   ] map reverse <scene> ;
 
@@ -71,14 +71,14 @@ IN: sgraphics.demos
   dup 
   '[ [ 0 2array 
        0 0 <point> 5 <circle>
-       swap scale ]
+       swap skew ]
      [ _ 1 / >float * 0 swap 0 0.3 <rgba>
     ] bi <colored>
   ] map <scene> ;
 
 : composite ( -- scene )
-  10 bullseye { 0.5 0.5 } scale { -100 100 } slide
-  8 fade { 0.4 0.4 } scale
+  10 bullseye 0.5 scale { -100 100 } slide
+  8 fade  0.4 scale
   pinwheel { 80 -80 } slide
   3array <scene> ;
 
