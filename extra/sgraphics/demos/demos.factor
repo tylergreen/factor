@@ -52,7 +52,9 @@ IN: sgraphics.demos
      } dup 0 0 <point> pi 2 / rotate merge ;
 
 : cross2 ( -- scene )
-     cross dup 0 0 <point> pi 4 / rotate merge ;
+     cross 
+     dup 0 0 <point> pi 4 / rotate
+     merge ;
  
 : bullseye ( n -- scene )
   [ [ 0 2array

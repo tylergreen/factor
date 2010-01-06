@@ -59,6 +59,18 @@ TUPLE: scene { objs vector } ;
     [ tuple>array unclip swap ] dip with-datastack
     swap prefix >tuple ; inline
 
+! a tuple walker
+: remap ( obj quot -- y )
+     [ tuple>array unclip swap ] dip map
+     swap prefix >tuple ; inline
+
+! assumes leaves are all the same
+! this could be improved
+:: twalk ( obj pred quot -- obj )
+     obj pred call( x -- y )
+     [ obj quot call( x -- y ) ]
+     [ obj [ pred quot twalk ] remap ] if ; inline recursive
+
 : slope ( line -- float )
   [ <line> ] undo [ point>vec ] bi@ math.points:slope ;
 
@@ -67,21 +79,16 @@ TUPLE: scene { objs vector } ;
 
 ! I think this can be changed to compile time macro
 
-GENERIC# transform 1 ( shape quot -- shape )
-M: point transform
-     call( x -- y ) ; inline
+! transform is a tree walker --
+! it walks down the scene object, transforming leaf nodes (aka points),
+! leaving the rest of the structure intact
 
-M: points transform
-     '[ _ map ] restruct ; inline
+! this transform you have written is incorrect.  Need to rethink this
+! approach.  Everything else is fine though
+! need to write tuple walker, takes point quotation to apply to leaves
 
-M: scene transform
-     '[ _ map ] restruct ; inline
-
-M: colored transform 
-     '[ _ dip ] restruct ; inline
-
-M: line transform
-     '[ _ bi@ ] restruct ; inline
+: transform ( shape quot -- shape )
+     [ point? ] swap twalk ;
 
 ! circle
 
@@ -93,7 +100,7 @@ M: line transform
 
 : scale ( obj scalar -- obj )
      dup 2array skew ;
-
+ 
 :: rotate-point ( point center radian -- point )
      #! moves point as if center were the origin, then moves the point back
      #! could be a lot simpler
@@ -110,7 +117,7 @@ M: line transform
      x y <point> ; inline
 
 : rotate ( obj center radian -- obj )
-     '[ _ _ rotate-point ] transform ; inline
+    '[ _ _ rotate-point ] transform ; inline
 
 : flip-horizontal ( obj -- obj )
      { -1 1 } skew ; inline
@@ -143,7 +150,7 @@ TUPLE: window
     window new
     { 300 300 } >>gldim
     { 0 0 } >>center
-    { 10 10 } >>sgdim
+    { 300 300 } >>sgdim
     COLOR: black  >>background 
     "SGraphics 2D" >>title ;
 
