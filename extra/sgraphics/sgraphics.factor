@@ -205,11 +205,19 @@ GENERIC: gl-compile ( obj -- quot )
 
 M: colored gl-compile ( colored-obj -- quot )
   [ <colored> ] undo swap
-  [ compile-color ]
-  [ gl-compile ] bi*
-  '[ [ GL_CURRENT_BIT glPushAttrib ]
-    _ _
-     [ glPopAttrib ] ] ; inline
+  [ compile-color ] dip
+  dup scene?
+  [ gl-compile 
+    '[ [ GL_CURRENT_BIT glPushAttrib ]
+     _ @ 
+     [ glPopAttrib ] ] concat
+  ]
+  [ gl-compile 
+    '[ [ GL_CURRENT_BIT glPushAttrib ]
+     _ _
+     [ glPopAttrib ] ] concat
+  ] if
+  ; inline
 
 M: point gl-compile ( point -- quot )
    >winpoint [ <point> ] undo '[ _ _ glVertex2f ] ; inline
@@ -248,7 +256,7 @@ M:: circle gl-compile ( circle -- quot )
 ! need to change merge for this
 ! -- scene should be immediately flattened 
 M: scene gl-compile ( scene -- quot )
-     [ <scene> ] undo [ gl-compile ] [ ] map-as concat ; inline
+     [ <scene> ] undo [ gl-compile ] [ ] map-as ; inline
 
 : link ( compiled-seq -- quot )
   '[ drop
@@ -266,14 +274,22 @@ M: scene gl-compile ( scene -- quot )
 ! ***************
 ! Renderer
 
+DEFER: flatten-colored 
+
 ! this is ridiculous.  Colored scene ruin everything
+! all wrong
 : flatten-scene ( obj -- seq )
      { { [ dup scene? ]
          [ objs>> [ flatten-scene ] map concat ]  }
        { [ dup colored? ]
-         [ [ [ flatten-scene <scene> ] dip ] restruct 1array ] }
+         [ flatten-colored ] }
        [ 1array ]
      } cond >vector ; inline recursive
+
+: flatten-colored ( colored -- seq )
+     dup obj>> scene?
+     [ [ [ flatten-scene <scene> ] dip ] restruct
+     ] when 1array ;
 
 : render ( obj -- )
      flatten-scene <scene>
@@ -289,11 +305,7 @@ PRIVATE>
 ! Top Level User Drawing Method
 
 : draw-in ( obj window -- )
-     win [
-       dup scene?
-       [ 1vector <scene> ] unless
-       render
-     ] with-variable ;
+     win [ render ] with-variable ;
    
 : draw ( obj -- )
     default-window draw-in ;
