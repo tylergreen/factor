@@ -65,7 +65,7 @@ IN: sgraphics.demos
         "green"
         "yellow" } [ named-color ] map nth
     ] bi <colored>
-  ] map reverse <scene> ;
+  ] map <reversed> <scene> ;
 
 : fade ( n -- scene )
   dup 

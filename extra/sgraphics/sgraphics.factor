@@ -4,7 +4,7 @@ opengl opengl.gl opengl.glu opengl.demo-support
 ui ui.gadgets ui.render
 parser grouping assocs
 compiler.units words generic accessors
-arrays kernel combinators namespaces sequences lists lists.lazy vectors
+arrays kernel combinators combinators.short-circuit namespaces sequences lists lists.lazy vectors
 words.constant classes.tuple
 colors colors.constants
 quotations continuations
@@ -73,10 +73,12 @@ TUPLE: scene { objs vector } ;
 :: twalk ( obj pred quot -- obj )
      { { [ obj pred call( x -- y ) ]
          [ obj quot call( x -- y ) ] }
-       { [ obj sequence? ] 
+       { [ obj tuple? ]
+         [ obj [ pred quot twalk ] remap ] }
+       { [ obj { [ number? not ] [ sequence? ]  } 1&& ]
          [ obj [ pred quot twalk ] map ]
        }
-       [ obj [ pred quot twalk ] remap ]
+       [ obj ] 
      } cond ; inline recursive
 
 : slope ( line -- float )
