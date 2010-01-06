@@ -113,10 +113,10 @@ M: line transform
      '[ _ _ rotate-point ] transform ; inline
 
 : flip-horizontal ( obj -- obj )
-     { -1 1 } scale ; inline
+     { -1 1 } skew ; inline
 
 : flip-vertical ( obj -- obj )
-     { 1 -1 } scale ; inline
+     { 1 -1 } skew ; inline
 
 ! ****************
 ! Window Parameters
@@ -124,19 +124,25 @@ M: line transform
 ! this method is better than globals if for no other reason than 
 ! you can print out all the current settings
 
+! support multiple way to specify windows
+
+
+! square windows that are zoom distance in real numbers around center
+! example
+! 
+
 TUPLE: window
-{ size pair initial: { 300 300 } }
+{ winsize pair initial: { 300 300 } }
 { center pair initial: { 300 300 } }
-{ zoom pair initial: { {  }
+zoom 
 { background rgba }
 { title string } ;
 
-
 : default-window ( -- window )
     window new
-    { 300 300 } >>size
-    { 150 150 } >>center
-    1.0 >>zoom
+    { 300 300 } >>winsize
+    { 0 0 } >>center
+    150.0 >>zoom
     COLOR: black  >>background 
     "SGraphics 2D" >>title ;
 
@@ -147,7 +153,7 @@ win [ default-window ] initialize
 TUPLE: sg-gadget < gadget ;
 
 M: sg-gadget pref-dim* ( gadget -- )
-  drop win get size>> ;
+  drop win get winsize>> ;
 
 <PRIVATE
 
@@ -158,9 +164,9 @@ GENERIC: >winpoint ( x -- y )
 
 ! might want to change this to a generic later
 M: point >winpoint ( cartesian-point -- window-coordinate )
-    [ neg ] restruct
-    win get zoom>> dup 2array scale
-    win get center>> slide ;
+     #! slide points up and right zoom/2 distance for primitive window system
+    flip-vertical
+    win get zoom>> dup 2array [ 2 / ] map slide ;
 
 ! ****************
 ! OpenGL Backend 
@@ -216,7 +222,7 @@ M: scene gl-compile ( scene -- quot )
   '[ drop
     GL_PROJECTION glMatrixMode
     glLoadIdentity
-    0 win get size>> [ first ] [ second ] bi 0 0 1 glOrtho
+    0 win get winsize>> [ first ] [ second ] bi 0 0 1 glOrtho
     GL_MODELVIEW glMatrixMode
     glLoadIdentity
     GL_DEPTH_TEST glDisable
