@@ -97,6 +97,8 @@ TUPLE: scene { objs vector } ;
 ! approach.  Everything else is fine though
 ! need to write tuple walker, takes point quotation to apply to leaves
 
+! this strategy doens't work directly for current circle implemen.
+
 : transform ( shape quot -- shape )
      [ point? ] swap twalk ;
 
@@ -312,12 +314,12 @@ PRIVATE>
 : draw ( obj -- )
     default-window draw-in ;
 
-: gline   ( -- line )
+: green-line   ( -- line )
   100 100 <point> 0 0 <point> <line> COLOR: green <colored> ;
 
 ! make sure color compiles
 : demo ( -- )
-  gline draw ;
+  green-line draw ;
 
 MAIN: demo
 

@@ -77,8 +77,8 @@ IN: sgraphics.demos
   ] map <scene> ;
 
 : composite ( -- scene )
-  10 bullseye 0.5 scale { -100 100 } slide
-  8 fade  0.4 scale
+  10 bullseye 4 scale { -100 100 } slide
+  8 fade 2 scale
   pinwheel { 80 -80 } slide
   3array <scene> ;
 
