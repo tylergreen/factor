@@ -30,7 +30,6 @@ M: bad-byte-array-length summary
 FUNCTOR: define-array ( T -- )
 
 A            DEFINES-CLASS ${T}-array
-S            DEFINES-CLASS ${T}-sequence
 <A>          DEFINES <${A}>
 (A)          DEFINES (${A})
 <direct-A>   DEFINES <direct-${A}>
@@ -45,8 +44,6 @@ NTH          [ T dup c-type-getter-boxer array-accessor ]
 SET-NTH      [ T dup c-setter array-accessor ]
 
 WHERE
-
-MIXIN: S
 
 TUPLE: A
 { underlying c-ptr read-only }
@@ -104,11 +101,11 @@ SYNTAX: A@ scan-object scan-object <direct-A> suffix! ;
 
 INSTANCE: A specialized-array
 
-M: A vs+ [ + \ T c-type-clamp ] 2map ;
-M: A vs- [ - \ T c-type-clamp ] 2map ;
-M: A vs* [ * \ T c-type-clamp ] 2map ;
+M: A vs+ [ + \ T c-type-clamp ] 2map ; inline
+M: A vs- [ - \ T c-type-clamp ] 2map ; inline
+M: A vs* [ * \ T c-type-clamp ] 2map ; inline
 
-M: A v*high [ * \ T heap-size neg shift ] 2map ;
+M: A v*high [ * \ T heap-size neg shift ] 2map ; inline
 
 ;FUNCTOR
 

@@ -30,6 +30,9 @@ struct factor_vm
 	/* Canonical truth value. In Factor, 't' */
 	cell true_object;
 
+	/* External entry points */
+	c_to_factor_func_type c_to_factor_func;
+
 	/* Is call counting enabled? */
 	bool profiling_p;
 
@@ -94,7 +97,7 @@ struct factor_vm
 	// contexts
 	context *alloc_context();
 	void dealloc_context(context *old_context);
-	void nest_stacks(stack_frame *magic_frame);
+	void nest_stacks();
 	void unnest_stacks();
 	void init_stacks(cell ds_size_, cell rs_size_);
 	bool stack_to_array(cell bottom, cell top);
@@ -113,7 +116,6 @@ struct factor_vm
 		while(ctx)
 		{
 			iterate_callstack(ctx,iter);
-			if(ctx->magic_frame) iter(ctx->magic_frame);
 			ctx = ctx->next;
 		}
 	}
@@ -265,8 +267,8 @@ struct factor_vm
 
 	inline void write_barrier(object *obj, cell size)
 	{
-		cell start = (cell)obj & -card_size;
-		cell end = ((cell)obj + size + card_size - 1) & -card_size;
+		cell start = (cell)obj & (~card_size + 1);
+		cell end = ((cell)obj + size + card_size - 1) & (~card_size + 1);
 
 		for(cell offset = start; offset < end; offset += card_size)
 			write_barrier((cell *)offset);
@@ -391,8 +393,8 @@ struct factor_vm
 	//words
 	word *allot_word(cell name_, cell vocab_, cell hashcode_);
 	void primitive_word();
-	void primitive_word_xt();
-	void update_word_xt(word *w_);
+	void primitive_word_code();
+	void update_word_entry_point(word *w_);
 	void primitive_optimized_p();
 	void primitive_wrapper();
 	void jit_compile_word(cell word_, cell def_, bool relocating);
@@ -501,17 +503,16 @@ struct factor_vm
 	void primitive_fclose();
 
 	//code_block
-	cell compute_xt_address(cell obj);
-	cell compute_xt_pic_address(word *w, cell tagged_quot);
-	cell compute_xt_pic_address(cell w_);
-	cell compute_xt_pic_tail_address(cell w_);
+	cell compute_entry_point_address(cell obj);
+	cell compute_entry_point_pic_address(word *w, cell tagged_quot);
+	cell compute_entry_point_pic_address(cell w_);
+	cell compute_entry_point_pic_tail_address(cell w_);
 	cell code_block_owner(code_block *compiled);
 	void update_word_references(code_block *compiled);
 	void check_code_address(cell address);
 	cell compute_primitive_address(cell arg);
 	void undefined_symbol();
 	cell compute_dlsym_address(array *literals, cell index);
-	cell compute_context_address();
 	cell compute_vm_address(cell arg);
 	void store_external_address(instruction_operand op);
 	cell compute_here_address(cell arg, cell offset, code_block *compiled);
@@ -563,7 +564,6 @@ struct factor_vm
 	stack_frame *fix_callstack_top(stack_frame *top, stack_frame *bottom);
 	stack_frame *second_from_top_stack_frame();
 	void primitive_callstack();
-	void primitive_set_callstack();
 	code_block *frame_code(stack_frame *frame);
 	code_block_type frame_type(stack_frame *frame);
 	cell frame_executing(stack_frame *frame);
@@ -597,14 +597,18 @@ struct factor_vm
 
 	//quotations
 	void primitive_jit_compile();
+	code_block *lazy_jit_compile_block();
 	void primitive_array_to_quotation();
-	void primitive_quotation_xt();
-	void set_quot_xt(quotation *quot, code_block *code);
+	void primitive_quotation_code();
+	void set_quot_entry_point(quotation *quot, code_block *code);
 	code_block *jit_compile_quot(cell owner_, cell quot_, bool relocating);
 	void jit_compile_quot(cell quot_, bool relocating);
 	fixnum quot_code_offset_to_scan(cell quot_, cell offset);
 	cell lazy_jit_compile(cell quot);
+	bool quot_compiled_p(quotation *quot);
 	void primitive_quot_compiled_p();
+	cell find_all_quotations();
+	void initialize_all_quotations();
 
 	//dispatch
 	cell search_lookup_alist(cell table, cell klass);
@@ -633,11 +637,15 @@ struct factor_vm
 	void update_pic_transitions(cell pic_size);
 	void *inline_cache_miss(cell return_address);
 
+	//entry points
+	void c_to_factor(cell quot);
+	void unwind_native_frames(cell quot, stack_frame *to);
+
 	//factor
 	void default_parameters(vm_parameters *p);
-	bool factor_arg(const vm_char* str, const vm_char* arg, cell* value);
+	bool factor_arg(const vm_char *str, const vm_char *arg, cell *value);
 	void init_parameters_from_args(vm_parameters *p, int argc, vm_char **argv);
-	void do_stage1_init();
+	void prepare_boot_image();
 	void init_factor(vm_parameters *p);
 	void pass_args_to_factor(int argc, vm_char **argv);
 	void start_factor(vm_parameters *p);
@@ -662,7 +670,7 @@ struct factor_vm
 	const vm_char *vm_executable_path();
 	const vm_char *default_image_path();
 	void windows_image_path(vm_char *full_path, vm_char *temp_path, unsigned int length);
-	bool windows_stat(vm_char *path);
+	BOOL windows_stat(vm_char *path);
 
   #if defined(WINNT)
 	void open_console();

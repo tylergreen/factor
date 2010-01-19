@@ -1,4 +1,4 @@
-! Copyright (C) 2007, 2009 Slava Pestov.
+! Copyright (C) 2007, 2010 Slava Pestov.
 ! See http://factorcode.org/license.txt for BSD license.
 USING: bootstrap.image.private compiler.constants
 compiler.units cpu.x86.assembler cpu.x86.assembler.operands
@@ -8,6 +8,52 @@ IN: bootstrap.x86
 
 big-endian off
 
+! C to Factor entry point
+[
+    ! Optimizing compiler's side of callback accesses
+    ! arguments that are on the stack via the frame pointer.
+    ! On x86-64, some arguments are passed in registers, and
+    ! so the only register that is safe for use here is safe-reg.
+    frame-reg PUSH
+    frame-reg stack-reg MOV
+
+    ! Save all non-volatile registers
+    nv-regs [ PUSH ] each
+
+    ! Save old stack pointer and align
+    safe-reg stack-reg MOV
+    stack-reg bootstrap-cell SUB
+    stack-reg -16 AND
+    stack-reg [] safe-reg MOV
+
+    ! Register shadow area - only required on Win64, but doesn't
+    ! hurt on other platforms
+    stack-reg 32 SUB
+
+    ! Load VM into vm-reg
+    vm-reg 0 MOV rc-absolute-cell rt-vm jit-rel
+
+    ! Call into Factor code
+    safe-reg 0 MOV rc-absolute-cell rt-entry-point jit-rel
+    safe-reg CALL
+
+    ! Tear down register shadow area
+    stack-reg 32 ADD
+
+    ! Undo stack alignment
+    stack-reg stack-reg [] MOV
+
+    ! Restore non-volatile registers
+    nv-regs <reversed> [ POP ] each
+
+    frame-reg POP
+
+    ! Callbacks which return structs, or use stdcall, need a
+    ! parameter here. See the comment in callback-return-rewind
+    ! in cpu.x86.32
+    HEX: ffff RET rc-absolute-2 rt-untagged jit-rel
+] callback-stub jit-define
+
 [
     ! Load word
     temp0 0 MOV rc-absolute-cell rt-literal jit-rel
@@ -15,9 +61,9 @@ big-endian off
     temp0 profile-count-offset [+] 1 tag-fixnum ADD
     ! Load word->code
     temp0 temp0 word-code-offset [+] MOV
-    ! Compute word XT
+    ! Compute word entry point
     temp0 compiled-header-size ADD
-    ! Jump to XT
+    ! Jump to entry point
     temp0 JMP
 ] jit-profiling jit-define
 
@@ -32,11 +78,11 @@ big-endian off
 
 [
     temp3 0 MOV rc-absolute-cell rt-here jit-rel
-    0 JMP rc-relative rt-xt-pic-tail jit-rel
+    0 JMP rc-relative rt-entry-point-pic-tail jit-rel
 ] jit-word-jump jit-define
 
 [
-    0 CALL rc-relative rt-xt-pic jit-rel
+    0 CALL rc-relative rt-entry-point-pic jit-rel
 ] jit-word-call jit-define
 
 [
@@ -47,9 +93,9 @@ big-endian off
     ! compare boolean with f
     temp0 \ f type-number CMP
     ! jump to true branch if not equal
-    0 JNE rc-relative rt-xt jit-rel
+    0 JNE rc-relative rt-entry-point jit-rel
     ! jump to false branch if equal
-    0 JMP rc-relative rt-xt jit-rel
+    0 JMP rc-relative rt-entry-point jit-rel
 ] jit-if jit-define
 
 : jit->r ( -- )
@@ -102,19 +148,19 @@ big-endian off
 
 [
     jit->r
-    0 CALL rc-relative rt-xt jit-rel
+    0 CALL rc-relative rt-entry-point jit-rel
     jit-r>
 ] jit-dip jit-define
 
 [
     jit-2>r
-    0 CALL rc-relative rt-xt jit-rel
+    0 CALL rc-relative rt-entry-point jit-rel
     jit-2r>
 ] jit-2dip jit-define
 
 [
     jit-3>r
-    0 CALL rc-relative rt-xt jit-rel
+    0 CALL rc-relative rt-entry-point jit-rel
     jit-3r>
 ] jit-3dip jit-define
 
@@ -124,14 +170,14 @@ big-endian off
     ! pop stack
     ds-reg bootstrap-cell SUB
 ]
-[ temp0 word-xt-offset [+] CALL ]
-[ temp0 word-xt-offset [+] JMP ]
-\ (execute) define-sub-primitive*
+[ temp0 word-entry-point-offset [+] CALL ]
+[ temp0 word-entry-point-offset [+] JMP ]
+\ (execute) define-combinator-primitive
 
 [
     temp0 ds-reg [] MOV
     ds-reg bootstrap-cell SUB
-    temp0 word-xt-offset [+] JMP
+    temp0 word-entry-point-offset [+] JMP
 ] jit-execute jit-define
 
 [
@@ -178,7 +224,7 @@ big-endian off
     temp1 temp2 CMP
 ] pic-check-tuple jit-define
 
-[ 0 JE rc-relative rt-xt jit-rel ] pic-hit jit-define
+[ 0 JE rc-relative rt-entry-point jit-rel ] pic-hit jit-define
 
 ! ! ! Megamorphic caches
 
@@ -202,14 +248,9 @@ big-endian off
     temp1 [] 1 ADD
     ! goto get(cache + bootstrap-cell)
     temp0 temp0 bootstrap-cell [+] MOV
-    temp0 word-xt-offset [+] JMP
+    temp0 word-entry-point-offset [+] JMP
     ! fall-through on miss
 ] mega-lookup jit-define
-
-[
-    safe-reg 0 MOV rc-absolute-cell rt-xt jit-rel
-    safe-reg JMP
-] callback-stub jit-define
 
 ! ! ! Sub-primitives
 

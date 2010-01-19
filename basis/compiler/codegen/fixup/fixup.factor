@@ -1,10 +1,10 @@
-! Copyright (C) 2007, 2009 Slava Pestov.
+! Copyright (C) 2007, 2010 Slava Pestov.
 ! See http://factorcode.org/license.txt for BSD license.
 USING: arrays byte-arrays byte-vectors generic assocs hashtables
 io.binary kernel kernel.private math namespaces make sequences
 words quotations strings alien.accessors alien.strings layouts
 system combinators math.bitwise math.order generalizations
-accessors growable fry compiler.constants ;
+accessors growable fry compiler.constants memoize ;
 IN: compiler.codegen.fixup
 
 ! Owner
@@ -34,13 +34,10 @@ TUPLE: label offset ;
     dup label? [ get ] unless
     compiled-offset >>offset drop ;
 
-: offset-for-class ( class -- n )
-    rc-absolute-cell = cell 4 ? compiled-offset swap - ;
-
 TUPLE: label-fixup { label label } { class integer } { offset integer } ;
 
 : label-fixup ( label class -- )
-    dup offset-for-class \ label-fixup boa label-table get push ;
+    compiled-offset \ label-fixup boa label-table get push ;
 
 ! Relocation table
 SYMBOL: relocation-table
@@ -53,22 +50,25 @@ SYMBOL: relocation-table
     { 0 24 28 } bitfield relocation-table get push-4 ;
 
 : rel-fixup ( class type -- )
-    swap dup offset-for-class add-relocation-entry ;
+    swap compiled-offset add-relocation-entry ;
+
+! Caching common symbol names reduces image size a bit
+MEMO: cached-string>symbol ( symbol -- obj ) string>symbol ;
 
 : add-dlsym-parameters ( symbol dll -- )
-    [ string>symbol add-parameter ] [ add-parameter ] bi* ;
+    [ cached-string>symbol add-parameter ] [ add-parameter ] bi* ;
 
 : rel-dlsym ( name dll class -- )
     [ add-dlsym-parameters ] dip rt-dlsym rel-fixup ;
 
 : rel-word ( word class -- )
-    [ add-literal ] dip rt-xt rel-fixup ;
+    [ add-literal ] dip rt-entry-point rel-fixup ;
 
 : rel-word-pic ( word class -- )
-    [ add-literal ] dip rt-xt-pic rel-fixup ;
+    [ add-literal ] dip rt-entry-point-pic rel-fixup ;
 
 : rel-word-pic-tail ( word class -- )
-    [ add-literal ] dip rt-xt-pic-tail rel-fixup ;
+    [ add-literal ] dip rt-entry-point-pic-tail rel-fixup ;
 
 : rel-primitive ( word class -- )
     [ def>> first add-parameter ] dip rt-primitive rel-fixup ;

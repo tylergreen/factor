@@ -1,4 +1,4 @@
-! Copyright (C) 2005, 2009 Slava Pestov, Daniel Ehrenberg.
+! Copyright (C) 2005, 2010 Slava Pestov, Daniel Ehrenberg.
 ! See http://factorcode.org/license.txt for BSD license.
 USING: accessors kernel kernel.private slots.private math
 math.private math.order ;
@@ -97,12 +97,6 @@ M: f nth-unsafe nip ; inline
 M: f like drop [ f ] when-empty ; inline
 
 INSTANCE: f immutable-sequence
-
-! Integers used to support the sequence protocol
-M: integer length ; inline
-M: integer nth-unsafe drop ; inline
-
-INSTANCE: integer immutable-sequence
 
 PRIVATE>
 
@@ -227,8 +221,8 @@ TUPLE: slice-error from to seq reason ;
     3tri ; inline
 
 : <slice> ( from to seq -- slice )
-    dup slice? [ collapse-slice ] when
     check-slice
+    dup slice? [ collapse-slice ] when
     slice boa ; inline
 
 M: slice virtual-exemplar seq>> ; inline
@@ -426,11 +420,11 @@ PRIVATE>
 : map ( seq quot -- newseq )
     over map-as ; inline
 
-: replicate ( seq quot -- newseq )
-    [ drop ] prepose map ; inline
+: replicate-as ( len quot exemplar -- newseq )
+    [ [ drop ] prepose ] dip map-integers ; inline
 
-: replicate-as ( seq quot exemplar -- newseq )
-    [ [ drop ] prepose ] dip map-as ; inline
+: replicate ( len quot -- newseq )
+    { } replicate-as ; inline
 
 : map! ( seq quot -- seq )
     over [ map-into ] keep ; inline
@@ -466,7 +460,7 @@ PRIVATE>
     (2each) all-integers? ; inline
 
 : 3each ( seq1 seq2 seq3 quot -- )
-    (3each) each ; inline
+    (3each) each-integer ; inline
 
 : 3map-as ( seq1 seq2 seq3 quot exemplar -- newseq )
     [ (3each) ] dip map-integers ; inline
@@ -842,6 +836,12 @@ PRIVATE>
         [ 3dup ] dip [ + swap nth-unsafe ] keep rot nth-unsafe =
     ] all? nip ; inline
 
+: prepare-2map-reduce ( seq1 seq2 map-quot -- initial length seq1 seq2 )
+    [ drop min-length dup 1 < [ "Empty sequence" throw ] when 1 - ]
+    [ drop [ [ 1 + ] 2dip 2nth-unsafe ] 2curry ]
+    [ [ [ first-unsafe ] bi@ ] dip call ]
+    3tri -rot ; inline
+
 PRIVATE>
 
 : start* ( subseq seq n -- i )
@@ -874,8 +874,8 @@ PRIVATE>
     compose reduce ; inline
 
 : 2map-reduce ( seq1 seq2 map-quot reduce-quot -- result )
-    [ [ 2unclip-slice ] dip [ call ] keep ] dip
-    compose 2reduce ; inline
+    [ [ prepare-2map-reduce ] keep ] dip
+    compose compose each-integer ; inline
 
 <PRIVATE
 

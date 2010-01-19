@@ -15,7 +15,7 @@ inline static void flush_icache(cell start, cell len) {}
    the offset from the immediate operand to MOV to the instruction after
    the jump is a cell for the immediate operand, 4 bytes for the JMP
    destination, and one byte for the JMP opcode. */
-static const fixnum xt_tail_pic_offset = sizeof(cell) + 4 + 1;
+static const fixnum xt_tail_pic_offset = 4 + 1;
 
 static const unsigned char call_opcode = 0xe8;
 static const unsigned char jmp_opcode = 0xe9;
@@ -72,17 +72,5 @@ inline static unsigned int fpu_status(unsigned int status)
 
         return r;
 }
-
-/* Defined in assembly */
-VM_C_API void c_to_factor(cell quot, void *vm);
-VM_C_API void throw_impl(cell quot, void *new_stack, void *vm);
-VM_C_API void lazy_jit_compile_impl(cell quot, void *vm);
-
-VM_C_API void set_callstack(
-	void *vm,
-	stack_frame *to,
-	stack_frame *from,
-	cell length,
-	void *(*memcpy)(void*,const void*, size_t));
 
 }

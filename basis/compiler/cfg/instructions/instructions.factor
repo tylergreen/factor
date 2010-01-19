@@ -1,4 +1,4 @@
-! Copyright (C) 2008, 2009 Slava Pestov.
+! Copyright (C) 2008, 2010 Slava Pestov.
 ! See http://factorcode.org/license.txt for BSD license.
 USING: assocs accessors arrays kernel sequences namespaces words
 math math.order layouts classes.algebra classes.union
@@ -671,11 +671,11 @@ literal: params stack-frame ;
 INSN: ##alien-indirect
 literal: params stack-frame ;
 
-INSN: ##alien-callback
+INSN: ##alien-assembly
 literal: params stack-frame ;
 
-INSN: ##callback-return
-literal: params ;
+INSN: ##alien-callback
+literal: params stack-frame ;
 
 ! Instructions used by CFG IR only.
 INSN: ##prologue ;

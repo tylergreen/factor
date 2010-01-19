@@ -69,7 +69,7 @@ CONSTANT: initial-spheres {
     T{ sphere f { 1.0 0.0  0.0 } {  0.0 5.0 0.0 } 0.025 1.0 { 1.0 1.0 0.0 1.0 } }
 }
 
-BEFORE: raytrace-world begin-world
+M: raytrace-world begin-game-world
     init-gpu
     { -2.0 6.25 10.0 } 0.19 0.55 set-wasd-view
     initial-spheres [ clone ] map >>spheres    
@@ -92,21 +92,16 @@ M: raytrace-world draw-world*
         { "vertex-array"   [ vertex-array>>              ] }
     } <render-set> render ;
 
-M: raytrace-world pref-dim* drop { 1024 768 } ;
-M: raytrace-world tick-length drop 1000000 30 /i ;
 M: raytrace-world wasd-movement-speed drop 1/4. ;
 
-: raytrace-window ( -- )
-    [
-        f T{ world-attributes
-            { world-class raytrace-world }
-            { title "Raytracing" }
-            { pixel-format-attributes {
-                windowed
-                double-buffered
-            } }
-            { grab-input? t }
-        } open-window
-    ] with-ui ;
-
-MAIN: raytrace-window
+GAME: raytrace-game {
+        { world-class raytrace-world }
+        { title "Raytracing" }
+        { pixel-format-attributes {
+            windowed
+            double-buffered
+        } }
+        { grab-input? t }
+        { pref-dim { 1024 768 } }
+        { tick-interval-micros $[ 1,000,000 60 /i ] }
+    } ;

@@ -48,7 +48,7 @@ PRIMITIVE_FORWARD(float_lesseq)
 PRIMITIVE_FORWARD(float_greater)
 PRIMITIVE_FORWARD(float_greatereq)
 PRIMITIVE_FORWARD(word)
-PRIMITIVE_FORWARD(word_xt)
+PRIMITIVE_FORWARD(word_code)
 PRIMITIVE_FORWARD(special_object)
 PRIMITIVE_FORWARD(set_special_object)
 PRIMITIVE_FORWARD(existsp)
@@ -62,7 +62,6 @@ PRIMITIVE_FORWARD(retainstack)
 PRIMITIVE_FORWARD(callstack)
 PRIMITIVE_FORWARD(set_datastack)
 PRIMITIVE_FORWARD(set_retainstack)
-PRIMITIVE_FORWARD(set_callstack)
 PRIMITIVE_FORWARD(exit)
 PRIMITIVE_FORWARD(data_room)
 PRIMITIVE_FORWARD(code_room)
@@ -99,7 +98,7 @@ PRIMITIVE_FORWARD(wrapper)
 PRIMITIVE_FORWARD(clone)
 PRIMITIVE_FORWARD(string)
 PRIMITIVE_FORWARD(array_to_quotation)
-PRIMITIVE_FORWARD(quotation_xt)
+PRIMITIVE_FORWARD(quotation_code)
 PRIMITIVE_FORWARD(tuple)
 PRIMITIVE_FORWARD(profiling)
 PRIMITIVE_FORWARD(become)
@@ -182,7 +181,7 @@ const primitive_type primitives[] = {
 	primitive_float_greater,
 	primitive_float_greatereq,
 	primitive_word,
-	primitive_word_xt,
+	primitive_word_code,
 	primitive_special_object,
 	primitive_set_special_object,
 	primitive_existsp,
@@ -196,7 +195,6 @@ const primitive_type primitives[] = {
 	primitive_callstack,
 	primitive_set_datastack,
 	primitive_set_retainstack,
-	primitive_set_callstack,
 	primitive_exit,
 	primitive_data_room,
 	primitive_code_room,
@@ -259,7 +257,7 @@ const primitive_type primitives[] = {
 	primitive_clone,
 	primitive_string,
 	primitive_array_to_quotation,
-	primitive_quotation_xt,
+	primitive_quotation_code,
 	primitive_tuple,
 	primitive_profiling,
 	primitive_become,

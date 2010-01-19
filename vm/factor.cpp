@@ -3,7 +3,6 @@
 namespace factor
 {
 
-factor_vm *vm;
 std::map<THREADHANDLE, factor_vm*> thread_vms;
 
 void init_globals()
@@ -31,11 +30,7 @@ void factor_vm::default_parameters(vm_parameters *p)
 #ifdef WINDOWS
 	p->console = false;
 #else
-	if (this == vm)
-		p->console = true;
-	else		
-		p->console = false;
-	
+	p->console = true;
 #endif
 
 	p->callback_size = 256;
@@ -79,14 +74,15 @@ void factor_vm::init_parameters_from_args(vm_parameters *p, int argc, vm_char **
 	}
 }
 
-/* Do some initialization that we do once only */
-void factor_vm::do_stage1_init()
+/* Compile code in boot image so that we can execute the startup quotation */
+void factor_vm::prepare_boot_image()
 {
 	std::cout << "*** Stage 2 early init... ";
 	fflush(stdout);
 
 	compile_all_words();
 	update_code_heap_words();
+	initialize_all_quotations();
 	special_objects[OBJ_STAGE2] = true_object;
 
 	std::cout << "done\n";
@@ -119,7 +115,7 @@ void factor_vm::init_factor(vm_parameters *p)
 	if(p->image_path == NULL)
 		p->image_path = default_image_path();
 
-	srand(system_micros());
+	srand((unsigned int)system_micros());
 	init_ffi();
 	init_stacks(p->ds_size,p->rs_size);
 	init_callbacks(p->callback_size);
@@ -145,7 +141,7 @@ void factor_vm::init_factor(vm_parameters *p)
 	gc_off = false;
 
 	if(!to_boolean(special_objects[OBJ_STAGE2]))
-		do_stage1_init();
+		prepare_boot_image();
 }
 
 /* May allocate memory */
@@ -164,14 +160,14 @@ void factor_vm::start_factor(vm_parameters *p)
 {
 	if(p->fep) factorbug();
 
-	nest_stacks(NULL);
+	nest_stacks();
 	c_to_factor_toplevel(special_objects[OBJ_STARTUP_QUOT]);
 	unnest_stacks();
 }
 
 void factor_vm::stop_factor()
 {
-	nest_stacks(NULL);
+	nest_stacks();
 	c_to_factor_toplevel(special_objects[OBJ_SHUTDOWN_QUOT]);
 	unnest_stacks();
 }
@@ -224,7 +220,7 @@ factor_vm *new_factor_vm()
 }
 
 // arg must be new'ed because we're going to delete it!
-void* start_standalone_factor_thread(void *arg) 
+void *start_standalone_factor_thread(void *arg) 
 {
 	factor_vm *newvm = new_factor_vm();
 	startargs *args = (startargs*) arg;
@@ -237,7 +233,6 @@ void* start_standalone_factor_thread(void *arg)
 VM_C_API void start_standalone_factor(int argc, vm_char **argv)
 {
 	factor_vm *newvm = new_factor_vm();
-	vm = newvm;
 	return newvm->start_standalone_factor(argc,argv);
 }
 

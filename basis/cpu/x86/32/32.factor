@@ -1,4 +1,4 @@
-! Copyright (C) 2005, 2009 Slava Pestov.
+! Copyright (C) 2005, 2010 Slava Pestov.
 ! See http://factorcode.org/license.txt for BSD license.
 USING: locals alien.c-types alien.libraries alien.syntax arrays
 kernel fry math namespaces sequences system layouts io
@@ -8,7 +8,8 @@ compiler.codegen compiler.codegen.fixup
 compiler.cfg.instructions compiler.cfg.builder
 compiler.cfg.intrinsics compiler.cfg.stack-frame
 cpu.x86.assembler cpu.x86.assembler.operands cpu.x86
-cpu.architecture ;
+cpu.architecture vm ;
+FROM: layouts => cell ;
 IN: cpu.x86.32
 
 M: x86.32 machine-registers
@@ -20,7 +21,14 @@ M: x86.32 machine-registers
 M: x86.32 ds-reg ESI ;
 M: x86.32 rs-reg EDI ;
 M: x86.32 stack-reg ESP ;
+M: x86.32 frame-reg EBP ;
 M: x86.32 temp-reg ECX ;
+
+M: x86.32 %mov-vm-ptr ( reg -- )
+    0 MOV 0 rc-absolute-cell rel-vm ;
+
+M: x86.32 %vm-field-ptr ( dst field -- )
+    [ 0 MOV ] dip vm-field-offset rc-absolute-cell rel-vm ;
 
 : local@ ( n -- op )
     stack-frame get extra-stack-space dup 16 assert= + stack@ ;
@@ -42,7 +50,7 @@ M: x86.32 %mark-deck
 M:: x86.32 %dispatch ( src temp -- )
     ! Load jump table base.
     temp src HEX: ffffffff [+] LEA
-    building get length cell - :> start
+    building get length :> start
     0 rc-absolute-cell rel-here
     ! Go
     temp HEX: 7f [+] JMP
@@ -215,11 +223,7 @@ M:: x86.32 %unbox-large-struct ( n c-type -- )
     "to_value_struct" f %alien-invoke ;
 
 M: x86.32 %nest-stacks ( -- )
-    ! Save current frame to ctx->magic_frame.
-    ! See comment in vm/contexts.hpp.
-    EAX stack-reg stack-frame get total-size>> 3 cells - [+] LEA
-    4 save-vm-ptr
-    0 stack@ EAX MOV
+    0 save-vm-ptr
     "nest_stacks" f %alien-invoke ;
 
 M: x86.32 %unnest-stacks ( -- )
@@ -238,10 +242,10 @@ M: x86.32 %alien-indirect ( -- )
     EBP CALL ;
 
 M: x86.32 %alien-callback ( quot -- )
+    EAX EDX %restore-context
     EAX swap %load-reference
-    0 stack@ EAX MOV
-    4 save-vm-ptr
-    "c_to_factor" f %alien-invoke ;
+    EAX quot-entry-point-offset [+] CALL
+    EAX EDX %save-context ;
 
 M: x86.32 %callback-value ( ctype -- )
     %pop-context-stack
@@ -300,20 +304,6 @@ M: x86.32 %cleanup ( params -- )
         [ drop ]
     } cond ;
 
-M: x86.32 %callback-return ( n -- )
-    #! a) If the callback is stdcall, we have to clean up the
-    #! caller's stack frame.
-    #! b) If the callback is returning a large struct, we have
-    #! to fix ESP.
-    {
-        { [ dup abi>> "stdcall" = ] [
-            <alien-stack-frame>
-            [ params>> ] [ return>> ] bi +
-        ] }
-        { [ dup return>> large-struct? ] [ drop 4 ] }
-        [ drop 0 ]
-    } cond RET ;
-
 M:: x86.32 %call-gc ( gc-root-count temp -- )
     temp gc-root-base special@ LEA
     8 save-vm-ptr
@@ -326,6 +316,20 @@ M: x86.32 dummy-stack-params? f ;
 M: x86.32 dummy-int-params? f ;
 
 M: x86.32 dummy-fp-params? f ;
+
+M: x86.32 callback-return-rewind ( params -- n )
+    #! a) If the callback is stdcall, we have to clean up the
+    #! caller's stack frame.
+    #! b) If the callback is returning a large struct, we have
+    #! to fix ESP.
+    {
+        { [ dup abi>> "stdcall" = ] [
+            <alien-stack-frame>
+            [ params>> ] [ return>> ] bi +
+        ] }
+        { [ dup return>> large-struct? ] [ drop 4 ] }
+        [ drop 0 ]
+    } cond ;
 
 ! Dreadful
 M: object flatten-value-type (flatten-int-type) ;
