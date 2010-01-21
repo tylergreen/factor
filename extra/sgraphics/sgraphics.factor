@@ -43,33 +43,38 @@ C: <polygon-outline> polygon-outline
 
 TUPLE: colored obj color ;
 C: <colored> colored
+
 TUPLE: scene { objs vector } ;
 : <scene> ( array -- scene )  >vector scene boa ;
 
-! I will make this more efficient later
 : merge ( x y -- scene ) 
      2array <scene> ;
 
 ! **************
 ! Utilities
 
-! is this worth having its own vocabulary? 
-: restruct ( x quot -- y )
-    [ tuple>array unclip swap ] dip with-datastack
-    swap prefix >tuple ; inline
+! is this section worth having its own vocabulary? 
+MACRO: requot ( quot -- )
+     '[ [ tuple>array unclip swap ] dip @
+        swap prefix >tuple ] ; 
 
-! a tuple walker
-: remap ( obj quot -- y )
-     [ tuple>array unclip swap ] dip map
-     swap prefix >tuple ; inline
+ : restruct ( tuple quot -- tuple )
+     [ with-datastack ] requot ; inline
 
-: remapconcat ( obj quot -- y )
-     [ tuple>array unclip swap ] dip map concat
-     swap prefix >tuple ; inline
+: remap ( tuple quot -- tuple )
+     [ map ] requot ; inline
+
+: remapconcat ( tuple -- tuple )
+     [ map concat ] requot ; inline
 
 ! assumes leaves are all the same
 ! this could be improved
 ! generalized to handle sequences too
+
+! what if you could just do this will generics?
+
+! sometimes you want to walk over the same tree
+! in different ways 
 :: twalk ( obj pred quot -- obj )
      { { [ obj pred call( x -- y ) ]
          [ obj quot call( x -- y ) ] }
@@ -79,6 +84,16 @@ TUPLE: scene { objs vector } ;
          [ obj [ pred quot twalk ] map ]
        }
        [ obj ] 
+     } cond ; inline recursive
+
+! doesn't work because leaf node might be a tuple   
+: twalk1 ( obj quot -- obj )
+     { { [ over tuple? ]
+         [ '[ _ twalk1 ] remap ] }
+       { [ over { [ number? not ] [ sequence? ]  } 1&& ]
+         [ '[ _ twalk1 ] map ]
+       }
+       [ call( x -- y ) ] 
      } cond ; inline recursive
 
 : slope ( line -- float )
@@ -99,10 +114,15 @@ TUPLE: scene { objs vector } ;
 
 ! this strategy doens't work directly for current circle implemen.
 
-: transform ( shape quot -- shape )
+: transform2 ( shape quot -- shape )
      [ point? ] swap twalk ;
 
-! circle
+: transform ( shape quot -- shape )
+  dup
+  '[ dup circle?
+     [ [ _ dip ] restruct ]
+     _ if 
+  ] twalk1 ;
 
 : slide ( obj vector -- obj )
      '[ _ v+ vec>point ] transform ; inline
@@ -110,6 +130,7 @@ TUPLE: scene { objs vector } ;
 : skew ( obj vector -- obj )
       '[ _ v* vec>point ] transform ; inline
 
+! check for negative number?
 : scale ( obj scalar -- obj )
      dup 2array skew ;
  
@@ -156,7 +177,6 @@ TUPLE: window
 { sgdim pair initial: { 10 10 } }
 { background rgba }
 { title string } ;
-
 
 : default-window ( -- window )
     window new
@@ -252,15 +272,8 @@ M:: circle gl-compile ( circle -- quot )
     '[ 12 * deg>rad _ c rot rotate ] 30 swap map compile-points
     '[ GL_POLYGON _ do-state ] ; inline
 
-! need to change merge for this
-! -- scene should be immediately flattened 
-! M: scene gl-compile ( scene -- quot )
-!  [ <scene> ] undo [ gl-compile ] [ ] map-as ; inline
-
-! need to change merge for this
-! -- scene should be immediately flattened 
 M: scene gl-compile ( scene -- quot )
-     [ <scene> ] undo [ gl-compile ] [ ] map-as ; inline
+     objs>> [ gl-compile ] [ ] map-as ; inline
 
 : link ( compiled-seq -- quot )
   '[ drop
