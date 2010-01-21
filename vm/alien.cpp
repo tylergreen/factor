@@ -102,11 +102,11 @@ void *factor_vm::alien_pointer()
 
 /* define words to read/write values at an alien address */
 #define DEFINE_ALIEN_ACCESSOR(name,type,from,to) \
-	PRIMITIVE(alien_##name) \
+	VM_C_API void primitive_alien_##name(factor_vm *parent) \
 	{ \
 		parent->ctx->push(from(*(type*)(parent->alien_pointer()),parent)); \
 	} \
-	PRIMITIVE(set_alien_##name) \
+	VM_C_API void primitive_set_alien_##name(factor_vm *parent) \
 	{ \
 		type *ptr = (type *)parent->alien_pointer(); \
 		type value = (type)to(parent->ctx->pop(),parent); \
@@ -251,11 +251,6 @@ cell factor_vm::from_medium_struct(cell x1, cell x2, cell x3, cell x4, cell size
 VM_C_API cell from_medium_struct(cell x1, cell x2, cell x3, cell x4, cell size, factor_vm *parent)
 {
 	return parent->from_medium_struct(x1, x2, x3, x4, size);
-}
-
-void factor_vm::primitive_vm_ptr()
-{
-	ctx->push(allot_alien(this));
 }
 
 }

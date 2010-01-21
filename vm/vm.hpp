@@ -510,7 +510,6 @@ struct factor_vm
 	cell code_block_owner(code_block *compiled);
 	void update_word_references(code_block *compiled);
 	void check_code_address(cell address);
-	cell compute_primitive_address(cell arg);
 	void undefined_symbol();
 	cell compute_dlsym_address(array *literals, cell index);
 	cell compute_vm_address(cell arg);
@@ -588,7 +587,6 @@ struct factor_vm
 	void primitive_dlsym();
 	void primitive_dlclose();
 	void primitive_dll_validp();
-	void primitive_vm_ptr();
 	char *alien_offset(cell obj);
 	void to_value_struct(cell src, void *dest, cell size);
 	cell from_value_struct(void *src, cell size);
