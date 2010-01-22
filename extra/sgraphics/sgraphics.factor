@@ -53,12 +53,11 @@ TUPLE: scene { objs vector } ;
 ! **************
 ! Utilities
 
-! is this section worth having its own vocabulary? 
 MACRO: requot ( quot -- )
      '[ [ tuple>array unclip swap ] dip @
         swap prefix >tuple ] ; 
 
- : restruct ( tuple quot -- tuple )
+: restruct ( tuple quot -- tuple )
      [ with-datastack ] requot ; inline
 
 : remap ( tuple quot -- tuple )
@@ -67,90 +66,86 @@ MACRO: requot ( quot -- )
 : remapconcat ( tuple -- tuple )
      [ map concat ] requot ; inline
 
-! assumes leaves are all the same
-! this could be improved
-! generalized to handle sequences too
-
-! what if you could just do this will generics?
-
-! sometimes you want to walk over the same tree
-! in different ways 
-:: twalk ( obj pred quot -- obj )
-     { { [ obj pred call( x -- y ) ]
-         [ obj quot call( x -- y ) ] }
-       { [ obj tuple? ]
-         [ obj [ pred quot twalk ] remap ] }
-       { [ obj { [ number? not ] [ sequence? ]  } 1&& ]
-         [ obj [ pred quot twalk ] map ]
-       }
-       [ obj ] 
-     } cond ; inline recursive
-
-! doesn't work because leaf node might be a tuple   
-: twalk1 ( obj quot -- obj )
-     { { [ over tuple? ]
-         [ '[ _ twalk1 ] remap ] }
-       { [ over { [ number? not ] [ sequence? ]  } 1&& ]
-         [ '[ _ twalk1 ] map ]
-       }
-       [ call( x -- y ) ] 
-     } cond ; inline recursive
-
 : slope ( line -- float )
   [ <line> ] undo [ point>vec ] bi@ math.points:slope ;
 
 ! ************
 ! Manipulation
 
-! I think this can be changed to compile time macro
+GENERIC# slide 1 ( obj vector -- obj )
 
-! transform is a tree walker --
-! it walks down the scene object, transforming leaf nodes (aka points),
-! leaving the rest of the structure intact
+M: point slide ( point 2array -- point )
+  v+ vec>point ; inline
 
-! this transform you have written is incorrect.  Need to rethink this
-! approach.  Everything else is fine though
-! need to write tuple walker, takes point quotation to apply to leaves
+M: points slide ( points 2array -- points )
+   '[ [ _ slide ] map ] restruct ;
 
-! this strategy doens't work directly for current circle implemen.
+M: scene slide ( scene 2array -- scene )
+  '[ [ _ slide ] map ] restruct ; inline
 
-: transform2 ( shape quot -- shape )
-     [ point? ] swap twalk ;
+M: colored slide ( colored 2array -- colored )
+  '[ [ _ slide ] dip ] restruct ; inline
 
-: transform ( shape quot -- shape )
-  dup
-  '[ dup circle?
-     [ [ _ dip ] restruct ]
-     _ if 
-  ] twalk1 ;
+M: circle slide ( circle 2array -- circle )
+  '[ [ _ slide ] dip ] restruct ; inline
 
-: slide ( obj vector -- obj )
-     '[ _ v+ vec>point ] transform ; inline
+M: line slide ( line 2array -- line )
+  '[ [ _ slide ] bi@ ] restruct ; inline
 
-: skew ( obj vector -- obj )
-      '[ _ v* vec>point ] transform ; inline
+! works but slides the image around unevenly depending on its position.
+! need to normalize coordinates first, scale, then move back
+GENERIC# skew 1 ( shape vector -- shape )
 
-! check for negative number?
-: scale ( obj scalar -- obj )
-     dup 2array skew ;
+M: point skew ( point pair -- point )
+  v* vec>point ;
+
+M: scene skew ( scene v -- scene )
+  '[ [ _ skew ] map ] restruct ;
+
+M: points skew ( points v -- points )
+  '[ [ _ skew ] map ] restruct ;
+
+M: line skew ( line v -- line )
+  '[ [ _ skew ] bi@ ] restruct ;
  
-:: rotate-point ( point center radian -- point )
-     #! moves point as if center were the origin, then moves the point back
-     #! could be a lot simpler
-     radian sin :> s
-     radian cos :> c
-     center x>> :> xc 
-     center y>> :> yc
-     point x>> xc - :> x1 
-     point y>> yc - :> y1
-     x1 c * y1 s * + :> x2
-     y1 c * x1 s * - :> y2
-     x2 xc + :> x
-     y2 yc + :> y
-     x y <point> ; inline
+M: circle skew ( circle v -- circle )
+    first '[ _ * ] restruct ;
 
-: rotate ( obj center radian -- obj )
-    '[ _ _ rotate-point ] transform ; inline
+M: colored skew ( colored n -- colored )
+  '[ [ _ skew ] dip ] restruct ;
+
+GENERIC# rotate 2 ( obj center radian -- obj )
+
+! moves point as if center were the origin, then moves the point back
+M:: point rotate ( point center radian -- point )
+    radian sin :> s 
+    radian cos :> c
+    center x>> :> xc 
+    center y>> :> yc 
+    point x>> xc - :> x1 
+    point y>> yc - :> y1 
+    x1 c * y1 s * + :> x2
+    y1 c * x1 s * - :> y2 
+    x2 xc + :> x
+    y2 yc + :> y 
+    x y <point>  ;
+
+M: points rotate ( points center radian -- point )
+  '[ [ _ _ rotate ] map ] restruct ;
+  
+M: line rotate ( line center radian -- line )
+  '[ [ _ _ rotate ] bi@ ] restruct ;
+
+M: colored rotate ( colored center radian -- colored )
+  '[ [ _ _ rotate ] dip ] restruct ;
+
+M: scene rotate ( scene center radian -- scene )
+  '[ [ _ _ rotate ] map ] restruct ; inline
+
+M: circle rotate ( center radian circle -- circle ) 2drop ; inline
+
+: scale ( obj scalar -- obj )
+    dup 2array skew ; inline
 
 : flip-horizontal ( obj -- obj )
      { -1 1 } skew ; inline
