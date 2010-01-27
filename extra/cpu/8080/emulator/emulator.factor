@@ -7,12 +7,14 @@ USING:
     assocs
     combinators
     fry
+    grouping
     io
     io.encodings.binary
     io.files
     io.pathnames
     kernel
     lexer
+    locals
     make
     math
     math.parser
@@ -24,7 +26,9 @@ USING:
     quotations
     sequences
     sequences.deep
+    inverse
     words
+    prettyprint
 ;
 IN: cpu.8080.emulator
 
@@ -133,11 +137,9 @@ CONSTANT: sign-flag         HEX: 80
   #! Read one byte from memory at the specified address.
   #! The address is 16-bit, but if a value greater than
   #! 0xFFFF is provided then return a default value.
-  over HEX: FFFF <= [
-    ram>> nth
-  ] [
-    2drop HEX: FF
-  ] if ;
+  over HEX: FFFF <=
+  [ ram>> nth ]
+  [ 2drop HEX: FF ] if ;
 
 : read-word ( addr cpu -- word )  
   #! Read a 16-bit word from memory at the specified address.
@@ -365,8 +367,9 @@ CONSTANT: sign-flag         HEX: 80
 
 : save-pc ( cpu -- )
   #! Save the value of the PC on the stack.
-  [ pc>> ] keep ! pc cpu
-  [ sp>> ] keep ! pc sp cpu
+  [ pc>> ] 
+  [ sp>> ] 
+  [ ] tri
   write-word ;
 
 : push-pc ( cpu -- )
@@ -377,7 +380,7 @@ CONSTANT: sign-flag         HEX: 80
 : pop-pc ( cpu -- pc )
   #! Pop the value of the PC off the stack.
   [ sp>> ] keep
-  [ read-word ] keep 
+  [ read-word ] keep
   -2 swap decrement-sp ;
 
 : push-sp ( value cpu -- )
@@ -401,12 +404,9 @@ CONSTANT: sign-flag         HEX: 80
 : interrupt ( number cpu -- )
   #! Perform a hardware interrupt
 !  "***Interrupt: " write over 16 >base print 
-  dup f>> interrupt-flag bitand 0 = not [
-    dup push-pc
-    (>>pc)
-  ] [
-    2drop
-  ] if ;
+  dup f>> interrupt-flag bitand 0 = not
+  [ dup push-pc (>>pc) ]
+  [ 2drop ] if ;
 
 : inc-cycles ( n cpu -- )
   #! Increment the number of cpu cycles
@@ -457,9 +457,8 @@ M: cpu reset ( cpu -- )
 : (load-rom) ( n ram -- )
   read1 [ ! n ram ch
     -rot [ set-nth ] 2keep [ 1 + ] dip (load-rom)
-  ] [
-    2drop
-  ] if* ;
+  ]
+  [ 2drop ] if* ;
 
   #! Reads the ROM from stdin and stores it in ROM from
   #! offset n.
@@ -502,18 +501,17 @@ SYMBOL: rom-root
 : get-cycles ( n -- opcode )
   #! Returns the cycles for the given instruction value.
   #! If the opcode is not defined throw an error.
-  dup instruction-cycles nth [ 
-    nip  
-  ] [
+  dup instruction-cycles nth
+  [ nip ]
+  [
     [ "Undefined 8080 opcode: " % number>string % ] "" make throw
   ] if* ;
 
 : process-interrupts ( cpu -- )
   #! Process any hardware interrupts
   [ cycles>> ] keep 
-  over 16667 < [
-    2drop
-  ] [ 
+  over 16667 <
+  [ 2drop ] [ 
     [ [ 16667 - ] dip (>>cycles) ] keep
     dup last-interrupt>> HEX: 10 = [
       HEX: 08 over (>>last-interrupt) HEX: 08 swap interrupt
@@ -527,34 +525,34 @@ SYMBOL: rom-root
   #! counter, but don't increment the counter.
   [ pc>> ] keep read-byte instructions nth first ;
 
-: cpu. ( cpu -- )
-  [ " PC: " write pc>> 16 >base 4 CHAR: \s pad-head write ] keep 
-  [ " B: " write b>> 16 >base 2 CHAR: \s pad-head write ] keep 
-  [ " C: " write c>> 16 >base 2 CHAR: \s pad-head write ] keep 
-  [ " D: " write d>> 16 >base 2 CHAR: \s pad-head write ] keep 
-  [ " E: " write e>> 16 >base 2 CHAR: \s pad-head write ] keep 
-  [ " F: " write f>> 16 >base 2 CHAR: \s pad-head write ] keep 
-  [ " H: " write h>> 16 >base 2 CHAR: \s pad-head write ] keep 
-  [ " L: " write l>> 16 >base 2 CHAR: \s pad-head write ] keep 
-  [ " A: " write a>> 16 >base 2 CHAR: \s pad-head write ] keep 
-  [ " SP: " write sp>> 16 >base 4 CHAR: \s pad-head write ] keep 
-  [ " cycles: " write cycles>> number>string 5 CHAR: \s pad-head write ] keep 
-  [ " " write peek-instruction name>> write " " write ] keep
-  nl drop ;
+:: print-registers ( cpu -- )
+  { " PC: " [ pc>> ] 4
+    " B: " [ b>> ] 2
+    " C: " [ c>> ] 2
+    " D: " [ d>> ] 2
+    " E: " [ e>> ] 2
+    " F: " [ f>> ] 2
+    " H: " [ h>> ] 2 
+    " L: " [ l>> ] 2 
+    " A: " [ a>> ] 2 
+    " SP: " [ sp>> ] 2 
+  } 3 group flip [ 3array ] undo
+  [| str accessor n |
+    str write
+    cpu accessor call( x -- y ) 16 >base n CHAR: \s pad-head write
+  ] 3each ; inline
 
-: cpu*. ( cpu -- )
-  [ " PC: " write pc>> 16 >base 4 CHAR: \s pad-head write ] keep 
-  [ " B: " write b>> 16 >base 2 CHAR: \s pad-head write ] keep 
-  [ " C: " write c>> 16 >base 2 CHAR: \s pad-head write ] keep 
-  [ " D: " write d>> 16 >base 2 CHAR: \s pad-head write ] keep 
-  [ " E: " write e>> 16 >base 2 CHAR: \s pad-head write ] keep 
-  [ " F: " write f>> 16 >base 2 CHAR: \s pad-head write ] keep 
-  [ " H: " write h>> 16 >base 2 CHAR: \s pad-head write ] keep 
-  [ " L: " write l>> 16 >base 2 CHAR: \s pad-head write ] keep 
-  [ " A: " write a>> 16 >base 2 CHAR: \s pad-head write ] keep 
-  [ " SP: " write sp>> 16 >base 4 CHAR: \s pad-head write ] keep 
-  [ " cycles: " write cycles>> number>string 5 CHAR: \s pad-head write ] keep 
-  nl drop ;
+: print-cycles ( cpu -- )
+  " cycles: " write cycles>> number>string 5 CHAR: \s pad-head write ;
+
+: print-next-instr ( cpu -- )
+  " " write peek-instruction name>> write " " write ; 
+
+: cpu*.2 ( cpu -- )
+  dup print-registers print-cycles nl ;
+
+: cpu.2 ( cpu -- )
+  dup dup print-registers print-cycles print-next-instr nl ;
 
 : register-lookup ( string -- vector )
   #! Given a string containing a register name, return a vector
@@ -574,7 +572,6 @@ SYMBOL: rom-root
     { "HL" { hl>> (>>hl) } }
     { "SP" { sp>> (>>sp) } }
   } at ;
-
 
 : flag-lookup ( string -- vector )
   #! Given a string containing a flag name, return a vector
