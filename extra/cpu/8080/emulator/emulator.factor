@@ -548,10 +548,10 @@ SYMBOL: rom-root
 : print-next-instr ( cpu -- )
   " " write peek-instruction name>> write " " write ; 
 
-: cpu*.2 ( cpu -- )
+: cpu*. ( cpu -- )
   dup print-registers print-cycles nl ;
 
-: cpu.2 ( cpu -- )
+: cpu. ( cpu -- )
   dup dup print-registers print-cycles print-next-instr nl ;
 
 : register-lookup ( string -- vector )
